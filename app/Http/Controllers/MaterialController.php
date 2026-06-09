@@ -4,17 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Material;
 use App\Models\Module;
-use App\Services\GoogleCloudStorageService;
+use App\Services\Storage\StorageManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class MaterialController extends Controller
 {
-    protected $gcpService;
+    protected $storageManager;
 
-    public function __construct(GoogleCloudStorageService $gcpService)
+    public function __construct(StorageManager $storageManager)
     {
-        $this->gcpService = $gcpService;
+        $this->storageManager = $storageManager;
     }
 
     /**
@@ -29,18 +29,19 @@ class MaterialController extends Controller
         ]);
 
         $module = Module::findOrFail($request->module_id);
-        $course = $module->course;
+        $subject = $module->subject;
+        $course = $subject->course;
         $user = Auth::user();
 
-        // Check auth: creator teacher or admin
-        if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
-            abort(403, 'Unauthorized.');
+        // Check access: user has permission and is assigned to this subject (or is admin)
+        if (!$user->hasPermission('manage_syllabus') || !$user->isAssignedToSubject($subject)) {
+            abort(403, 'Unauthorized. You must be assigned to this subject to manage its syllabus.');
         }
 
         if ($request->hasFile('material_file')) {
             // Upload path: /materials/course-id/
             $destinationPath = "materials/{$course->id}";
-            $uploadedFilePath = $this->gcpService->upload($request->file('material_file'), $destinationPath);
+            $uploadedFilePath = $this->storageManager->driver()->upload($request->file('material_file'), $destinationPath);
 
             Material::create([
                 'module_id' => $module->id,
@@ -61,20 +62,42 @@ class MaterialController extends Controller
     {
         $user = Auth::user();
         $module = $material->module;
-        $course = $module->course;
+        $subject = $module->subject;
+        $course = $subject->course;
 
-        // Check access: Admin or course teacher or enrolled student
-        if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
-            $isEnrolled = $user->enrolledCourses()->where('course_id', $course->id)->exists();
+        // Check access: Admin or assigned subject teacher or enrolled student
+        if (!$user->isAssignedToSubject($subject)) {
+            $isEnrolled = $user->enrolledCourses()
+                ->where('course_id', $course->id)
+                ->where('enrollments.is_approved', true)
+                ->exists();
             if (!$isEnrolled) {
-                abort(403, 'You must be enrolled in this course to download this material.');
+                abort(403, 'You must have an approved enrollment in this course to download this material.');
             }
         }
 
-        // Generate a signed URL for secure download (expires in 15 minutes)
-        $signedUrl = $this->gcpService->generateSignedUrl($material->file_path, 15);
+        if ($user->isStudent()) {
+            \App\Models\UsageLog::create([
+                'user_id' => $user->id,
+                'course_id' => $course->id,
+                'action' => 'download_material',
+                'details' => "Downloaded study material: {$material->title}",
+            ]);
+        }
 
-        return redirect()->away($signedUrl);
+        // If GCP/R2/Mux storage is configured, redirect to signed URL
+        if (env('GCP_BUCKET') || \App\Models\Setting::get('active_storage_driver') !== 'local') {
+            $signedUrl = $this->storageManager->driver()->generateSignedUrl($material->file_path, 15);
+            return redirect()->away($signedUrl);
+        }
+
+        // Local fallback: Stream file directly from storage securely
+        $fullPath = storage_path("app/public/{$material->file_path}");
+        if (file_exists($fullPath)) {
+            return response()->download($fullPath);
+        }
+
+        abort(404, 'Study material file not found.');
     }
 
     /**
@@ -84,14 +107,14 @@ class MaterialController extends Controller
     {
         $user = Auth::user();
         $module = $material->module;
-        $course = $module->course;
+        $subject = $module->subject;
 
-        if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
+        if (!$user->hasPermission('manage_syllabus') || !$user->isAssignedToSubject($subject)) {
             abort(403, 'Unauthorized.');
         }
 
         // Delete from storage
-        $this->gcpService->delete($material->file_path);
+        $this->storageManager->driver()->delete($material->file_path);
 
         $material->delete();
 

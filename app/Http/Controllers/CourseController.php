@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
+use App\Models\User;
 use App\Services\GoogleCloudStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -24,15 +25,26 @@ class CourseController extends Controller
         $user = Auth::user();
 
         if ($user->isAdmin()) {
-            $courses = Course::with('teacher')->get();
+            $courses = Course::with(['teachers', 'schoolClass'])->get();
         } elseif ($user->isTeacher()) {
-            $courses = Course::where('teacher_id', $user->id)->get();
+            // Fetch courses where teacher is creator OR assigned as course_admin/teacher
+            $courseIds = array_unique(array_merge(
+                Course::where('teacher_id', $user->id)->pluck('id')->toArray(),
+                $user->assignedCourses()->pluck('course_id')->toArray()
+            ));
+            $courses = Course::whereIn('id', $courseIds)->with('schoolClass')->get();
         } else {
-            // Student: can view all published courses
-            $courses = Course::where('is_published', true)->with('teacher')->get();
-            // Get enrolled course IDs for checking enrollment status in views
-            $enrolledCourseIds = $user->enrolledCourses()->pluck('courses.id')->toArray();
-            return view('courses.index', compact('courses', 'enrolledCourseIds'));
+            // Student: can view all published courses that match their class (or have no class assigned)
+            $courses = Course::where('is_published', true)
+                ->where(function ($query) use ($user) {
+                    $query->whereNull('school_class_id')
+                          ->orWhere('school_class_id', $user->school_class_id);
+                })
+                ->with(['teachers', 'schoolClass'])
+                ->get();
+            // Get user enrollments map: course_id => is_approved
+            $enrollmentsMap = $user->enrollments()->pluck('is_approved', 'course_id')->toArray();
+            return view('courses.index', compact('courses', 'enrollmentsMap'));
         }
 
         return view('courses.index', compact('courses'));
@@ -43,12 +55,14 @@ class CourseController extends Controller
      */
     public function create()
     {
-        // Only teachers and admins
-        if (!Auth::user()->isAdmin() && !Auth::user()->isTeacher()) {
+        if (!Auth::user()->hasPermission('create_courses')) {
             abort(403, 'Unauthorized.');
         }
 
-        return view('courses.create');
+        $classes = \App\Models\SchoolClass::orderBy('name')->get();
+        $teachers = User::where('role', 'teacher')->orderBy('name')->get();
+
+        return view('courses.create', compact('classes', 'teachers'));
     }
 
     /**
@@ -57,7 +71,7 @@ class CourseController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        if (!$user->isAdmin() && !$user->isTeacher()) {
+        if (!$user->hasPermission('create_courses')) {
             abort(403, 'Unauthorized.');
         }
 
@@ -65,21 +79,30 @@ class CourseController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'school_class_id' => 'nullable|exists:school_classes,id',
+            'teacher_id' => 'nullable|exists:users,id',
+            'duration' => 'nullable|string|max:100',
         ]);
 
         $thumbnailPath = null;
         if ($request->hasFile('thumbnail')) {
-            // Storing thumbnail inside course directory path (using mock GCP service)
             $thumbnailPath = $this->gcpService->upload($request->file('thumbnail'), 'thumbnails');
         }
 
-        Course::create([
+        $creatorId = $user->isAdmin() && $request->filled('teacher_id') ? $request->teacher_id : $user->id;
+
+        $course = Course::create([
             'title' => $request->title,
             'description' => $request->description,
             'thumbnail' => $thumbnailPath,
-            'teacher_id' => $user->isAdmin() && $request->filled('teacher_id') ? $request->teacher_id : $user->id,
+            'teacher_id' => $creatorId,
+            'school_class_id' => $request->school_class_id,
             'is_published' => $request->boolean('is_published'),
+            'duration' => $request->duration,
         ]);
+
+        // Auto-assign course creator as course_admin
+        $course->teachers()->attach($creatorId, ['role' => 'course_admin']);
 
         return redirect()->route('courses.index')->with('success', 'Course created successfully.');
     }
@@ -93,20 +116,113 @@ class CourseController extends Controller
 
         // Access check
         if (!$course->is_published) {
-            if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
+            if (!$user->isAssignedToCourse($course)) {
                 abort(403, 'This course is not published.');
             }
         }
 
-        // Load relations
-        $course->load(['modules.lectures', 'modules.materials', 'liveClasses', 'teacher']);
+        // Load relations: subjects, modules, lectures, materials, live classes
+        $course->load([
+            'subjects.modules.lectures', 
+            'subjects.modules.materials', 
+            'subjects.liveClasses',
+            'subjects.teachers',
+            'teachers', 
+            'schoolClass'
+        ]);
 
         $isEnrolled = false;
+        $isPending = false;
         if ($user->isStudent()) {
-            $isEnrolled = $user->enrolledCourses()->where('course_id', $course->id)->exists();
+            $enrollment = \App\Models\Enrollment::where('student_id', $user->id)
+                ->where('course_id', $course->id)
+                ->first();
+            if ($enrollment) {
+                $isEnrolled = $enrollment->is_approved;
+                $isPending = !$enrollment->is_approved;
+            }
         }
 
-        return view('courses.show', compact('course', 'isEnrolled'));
+        // For teachers/admins, fetch pending enrollment requests for this course
+        $pendingEnrollments = [];
+        if ($user->isAssignedToCourse($course, 'course_admin')) {
+            $pendingEnrollments = \App\Models\Enrollment::where('course_id', $course->id)
+                ->where('is_approved', false)
+                ->with('student')
+                ->get();
+        }
+
+        $allTeachers = User::where('role', 'teacher')->orderBy('name')->get();
+
+        // Progress tracking calculations
+        $completedLectureIds = [];
+        $lectureProgressMap = [];
+        $courseProgressPercent = 0;
+        $attendedLiveClassIds = [];
+        $upcomingLiveClasses = [];
+        $pastLiveClasses = [];
+
+        // Collect all lectures in this course
+        $courseLectureIds = [];
+        foreach ($course->subjects as $subject) {
+            foreach ($subject->modules as $mod) {
+                foreach ($mod->lectures as $lec) {
+                    $courseLectureIds[] = $lec->id;
+                }
+            }
+        }
+
+        if ($user->isStudent()) {
+            $progressRecords = \App\Models\LectureProgress::where('user_id', $user->id)
+                ->whereIn('lecture_id', $courseLectureIds)
+                ->get();
+
+            $completedCount = 0;
+            foreach ($progressRecords as $rec) {
+                if ($rec->is_completed) {
+                    $completedLectureIds[] = $rec->lecture_id;
+                    $completedCount++;
+                }
+                $lectureProgressMap[$rec->lecture_id] = $rec->seconds_watched;
+            }
+
+            $totalLectures = count($courseLectureIds);
+            $courseProgressPercent = $totalLectures > 0 ? round(($completedCount / $totalLectures) * 100) : 0;
+
+            $attendedLiveClassIds = \App\Models\LiveClassAttendance::where('user_id', $user->id)
+                ->whereHas('liveClass.subject', function($q) use ($course) {
+                    $q->where('course_id', $course->id);
+                })
+                ->pluck('live_class_id')
+                ->toArray();
+        }
+
+        // Partition live classes by subject
+        foreach ($course->subjects as $subject) {
+            $upcomingLiveClasses[$subject->id] = [];
+            $pastLiveClasses[$subject->id] = [];
+            foreach ($subject->liveClasses as $lc) {
+                if ($lc->datetime > now()) {
+                    $upcomingLiveClasses[$subject->id][] = $lc;
+                } else {
+                    $pastLiveClasses[$subject->id][] = $lc;
+                }
+            }
+        }
+
+        return view('courses.show', compact(
+            'course', 
+            'isEnrolled', 
+            'isPending', 
+            'pendingEnrollments', 
+            'allTeachers',
+            'completedLectureIds',
+            'lectureProgressMap',
+            'courseProgressPercent',
+            'attendedLiveClassIds',
+            'upcomingLiveClasses',
+            'pastLiveClasses'
+        ));
     }
 
     /**
@@ -115,11 +231,14 @@ class CourseController extends Controller
     public function edit(Course $course)
     {
         $user = Auth::user();
-        if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
+        if (!$user->isAssignedToCourse($course, 'course_admin')) {
             abort(403, 'Unauthorized.');
         }
 
-        return view('courses.edit', compact('course'));
+        $classes = \App\Models\SchoolClass::orderBy('name')->get();
+        $teachers = User::where('role', 'teacher')->orderBy('name')->get();
+
+        return view('courses.edit', compact('course', 'classes', 'teachers'));
     }
 
     /**
@@ -128,7 +247,7 @@ class CourseController extends Controller
     public function update(Request $request, Course $course)
     {
         $user = Auth::user();
-        if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
+        if (!$user->isAssignedToCourse($course, 'course_admin')) {
             abort(403, 'Unauthorized.');
         }
 
@@ -136,16 +255,24 @@ class CourseController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'school_class_id' => 'nullable|exists:school_classes,id',
+            'teacher_id' => 'nullable|exists:users,id',
+            'duration' => 'nullable|string|max:100',
         ]);
 
         $data = [
             'title' => $request->title,
             'description' => $request->description,
+            'school_class_id' => $request->school_class_id,
             'is_published' => $request->boolean('is_published'),
+            'duration' => $request->duration,
         ];
 
+        if ($user->isAdmin() && $request->filled('teacher_id')) {
+            $data['teacher_id'] = $request->teacher_id;
+        }
+
         if ($request->hasFile('thumbnail')) {
-            // Delete old thumbnail if exists
             if ($course->thumbnail) {
                 $this->gcpService->delete($course->thumbnail);
             }
@@ -163,11 +290,10 @@ class CourseController extends Controller
     public function destroy(Course $course)
     {
         $user = Auth::user();
-        if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
+        if (!$user->isAssignedToCourse($course, 'course_admin')) {
             abort(403, 'Unauthorized.');
         }
 
-        // Delete thumbnail if exists
         if ($course->thumbnail) {
             $this->gcpService->delete($course->thumbnail);
         }
@@ -183,7 +309,7 @@ class CourseController extends Controller
     public function togglePublish(Course $course)
     {
         $user = Auth::user();
-        if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
+        if (!$user->isAssignedToCourse($course, 'course_admin')) {
             abort(403, 'Unauthorized.');
         }
 
@@ -193,5 +319,49 @@ class CourseController extends Controller
 
         $status = $course->is_published ? 'published' : 'unpublished';
         return redirect()->back()->with('success', "Course has been successfully {$status}.");
+    }
+
+    /**
+     * Toggle course completion (Subject Completed batch-wise).
+     */
+    public function toggleCompletion(Course $course)
+    {
+        $user = Auth::user();
+        if (!$user->isAssignedToCourse($course, 'course_admin')) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $course->update([
+            'is_completed' => !$course->is_completed
+        ]);
+
+        $status = $course->is_completed ? 'completed' : 'active';
+        return redirect()->back()->with('success', "Subject has been marked as {$status} for the class.");
+    }
+
+    /**
+     * Assign teachers to a Course (Admin Only).
+     */
+    public function assignTeachers(Request $request, Course $course)
+    {
+        if (!Auth::user()->isAdmin()) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $request->validate([
+            'teachers' => 'required|array',
+            'teachers.*' => 'exists:users,id',
+            'roles' => 'required|array',
+        ]);
+
+        $syncData = [];
+        foreach ($request->teachers as $teacherId) {
+            $role = $request->roles[$teacherId] ?? 'teacher';
+            $syncData[$teacherId] = ['role' => $role];
+        }
+
+        $course->teachers()->sync($syncData);
+
+        return redirect()->back()->with('success', 'Course teachers updated successfully.');
     }
 }

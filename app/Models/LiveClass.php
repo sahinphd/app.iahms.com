@@ -10,21 +10,23 @@ class LiveClass extends Model
     use HasFactory;
 
     protected $fillable = [
-        'course_id',
+        'subject_id',
         'title',
         'datetime',
         'link',
+        'duration_minutes',
     ];
 
     protected $casts = [
         'datetime' => 'datetime',
+        'duration_minutes' => 'integer',
     ];
 
     /**
-     * Relationship: The course this live class is scheduled for.
+     * Relationship: The subject this live class is scheduled for.
      */
-    public function course()
+    public function subject()
     {
-        return $this->belongsTo(Course::class);
+        return $this->belongsTo(Subject::class);
     }
 }

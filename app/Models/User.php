@@ -97,5 +97,164 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Course::class, 'enrollments', 'student_id', 'course_id');
     }
+
+    /**
+     * Relationship: The class this user (student) belongs to.
+     */
+    public function schoolClass()
+    {
+        return $this->belongsTo(SchoolClass::class, 'school_class_id');
+    }
+
+    /**
+     * Relationship: The login history records for this user.
+     */
+    public function loginHistories()
+    {
+        return $this->hasMany(LoginHistory::class);
+    }
+
+    /**
+     * Relationship: The activity usage logs for this user.
+     */
+    public function usageLogs()
+    {
+        return $this->hasMany(UsageLog::class);
+    }
+
+    /**
+     * Relationship: The user specific permission overrides.
+     */
+    public function userPermissions()
+    {
+        return $this->hasMany(UserPermission::class);
+    }
+
+    /**
+     * Relationship: The lecture progress records for this user.
+     */
+    public function lectureProgresses()
+    {
+        return $this->hasMany(LectureProgress::class);
+    }
+
+    /**
+     * Relationship: The live class attendance records for this user.
+     */
+    public function liveClassAttendances()
+    {
+        return $this->hasMany(LiveClassAttendance::class);
+    }
+
+    /**
+     * Relationship: Courses assigned to this user (as a teacher).
+     */
+    public function assignedCourses()
+    {
+        return $this->belongsToMany(Course::class, 'course_user', 'user_id', 'course_id')
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
+    /**
+     * Relationship: Classes assigned to this user (as a teacher).
+     */
+    public function assignedClasses()
+    {
+        return $this->belongsToMany(SchoolClass::class, 'school_class_user', 'user_id', 'school_class_id')
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
+    /**
+     * Relationship: Subjects assigned to this user (as a teacher).
+     */
+    public function assignedSubjects()
+    {
+        return $this->belongsToMany(Subject::class, 'subject_user', 'user_id', 'subject_id')
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
+    /**
+     * Check if user is assigned to a course.
+     */
+    public function isAssignedToCourse(Course $course, string $role = null): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        $query = $this->assignedCourses()->where('course_id', $course->id);
+        if ($role) {
+            $query->wherePivot('role', $role);
+        }
+
+        return $query->exists();
+    }
+
+    /**
+     * Check if user is assigned to a class.
+     */
+    public function isAssignedToClass(SchoolClass $class, string $role = null): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        $query = $this->assignedClasses()->where('school_class_id', $class->id);
+        if ($role) {
+            $query->wherePivot('role', $role);
+        }
+
+        return $query->exists();
+    }
+
+    /**
+     * Check if user is assigned to a subject.
+     */
+    public function isAssignedToSubject(Subject $subject, string $role = null): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        // 1. Direct assignment to the subject
+        $query = $this->assignedSubjects()->where('subject_id', $subject->id);
+        if ($role) {
+            $query->wherePivot('role', $role);
+        }
+        if ($query->exists()) {
+            return true;
+        }
+
+        // 2. Fallback: Course Admin of the parent course
+        return $this->isAssignedToCourse($subject->course, 'course_admin');
+    }
+
+    /**
+     * Check if user has permission.
+     */
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        // 1. Check user-specific override first
+        $override = UserPermission::where('user_id', $this->id)
+            ->where('permission', $permission)
+            ->first();
+
+        if ($override !== null) {
+            return (bool) $override->is_allowed;
+        }
+
+        // 2. Fall back to role-based permission
+        return RolePermission::where('role', $this->role)
+            ->where('permission', $permission)
+            ->where('is_allowed', true)
+            ->exists();
+    }
 }
 

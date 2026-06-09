@@ -49,7 +49,7 @@
                 @forelse($enrolledCourses as $course)
                 <div class="bg-slate-900/50 border border-slate-850 hover:border-slate-800 p-5 rounded-2xl flex flex-col justify-between transition-all duration-200">
                     <div>
-                        <div class="h-28 w-full rounded-xl bg-slate-850 overflow-hidden mb-4 border border-slate-800">
+                        <div class="h-28 w-full rounded-xl bg-slate-850 overflow-hidden mb-4 border border-slate-800 relative">
                             @if($course->thumbnail)
                                 <img src="{{ asset('storage/' . $course->thumbnail) }}" alt="Thumbnail" class="h-full w-full object-cover">
                             @else
@@ -57,9 +57,23 @@
                                     No Image
                                 </div>
                             @endif
+
+                            @if($course->is_completed)
+                                <span class="absolute top-2 right-2 px-2 py-1 text-[9px] font-bold bg-emerald-950/90 text-emerald-400 border border-emerald-500/30 rounded-xl flex items-center space-x-1 backdrop-blur-sm">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span>Completed</span>
+                                </span>
+                            @endif
                         </div>
-                        <h4 class="text-sm font-bold text-slate-200 truncate">{{ $course->title }}</h4>
+                        <div class="flex items-center justify-between gap-2">
+                            <h4 class="text-sm font-bold text-slate-200 truncate">{{ $course->title }}</h4>
+                        </div>
                         <p class="text-[10px] text-slate-400 mt-1">Instructor: {{ $course->teacher->name }}</p>
+                        @if($course->duration)
+                            <p class="text-[10px] text-slate-500 mt-0.5">Duration: {{ $course->duration }}</p>
+                        @endif
                     </div>
                     <div class="mt-4 flex items-center justify-between">
                         <form action="{{ route('enrollments.unenroll', $course->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to unenroll from this course?')">
@@ -85,35 +99,96 @@
             </div>
         </div>
 
-        <!-- Upcoming Live Classes -->
-        <div class="bg-slate-950/40 border border-slate-800 rounded-3xl p-6 shadow-lg flex flex-col">
-            <h3 class="text-lg font-bold text-slate-100 mb-1">Upcoming Live Classes</h3>
-            <p class="text-xs text-slate-400 mb-6">Join scheduled Meet sessions with instructors</p>
-
-            <div class="space-y-4 overflow-y-auto max-h-[350px] flex-1">
-                @forelse($upcomingClasses as $class)
-                <div class="p-4 bg-slate-900/50 border border-slate-850 rounded-2xl space-y-3 hover:border-slate-800 transition-colors">
-                    <div>
-                        <span class="text-[10px] uppercase font-bold text-amber-400 tracking-wider">Scheduled Live</span>
-                        <h4 class="text-sm font-bold text-slate-200 mt-0.5 truncate">{{ $class->title }}</h4>
-                        <p class="text-[10px] text-slate-500 mt-0.5 truncate">Course: {{ $class->course->title }}</p>
-                    </div>
-                    <div class="flex justify-between items-center text-xs text-slate-400">
-                        <div class="flex items-center space-x-1">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span>{{ $class->datetime->format('M d, H:i') }}</span>
-                        </div>
-                        <a href="{{ $class->link }}" target="_blank" class="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-[10px] transition-all duration-200 shadow-md shadow-brand-600/10">
-                            Launch Class
-                        </a>
-                    </div>
+        <div class="space-y-6">
+            <!-- Class Noticeboard announcements -->
+            <div class="bg-slate-950/40 border border-slate-800 rounded-3xl p-6 shadow-lg flex flex-col space-y-4">
+                <div>
+                    <h3 class="text-base font-bold text-slate-200 mb-1">Class Noticeboard</h3>
+                    <p class="text-xs text-slate-450">Announcements from your class instructors</p>
                 </div>
-                @empty
-                <div class="text-center py-12 text-xs text-slate-500">No upcoming classes scheduled.</div>
-                @endforelse
+
+                <div class="space-y-3 overflow-y-auto max-h-[300px]">
+                    @forelse($classNotes as $note)
+                        <div class="p-3.5 bg-slate-900/50 border border-slate-850 rounded-2xl space-y-2 hover:border-slate-800 transition-colors">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    @if(!$note->school_class_id)
+                                        <span class="px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase bg-brand-500/10 text-brand-400 border border-brand-500/20">Global Notice</span>
+                                    @endif
+                                    <h4 class="text-xs font-bold text-slate-200 mt-1">{{ $note->title }}</h4>
+                                    <p class="text-[9px] text-slate-500 mt-0.5">By {{ $note->teacher->name }}</p>
+                                </div>
+                                <span class="text-[9px] text-slate-500">{{ $note->created_at->format('M d, H:i') }}</span>
+                            </div>
+                            <p class="text-xs text-slate-400 leading-relaxed">{{ $note->content }}</p>
+                        </div>
+                    @empty
+                        <div class="text-center py-8 text-xs text-slate-550 italic">No announcements posted for your class.</div>
+                    @endforelse
+                </div>
             </div>
+
+            <!-- Upcoming Live Classes -->
+            <div class="bg-slate-950/40 border border-slate-800 rounded-3xl p-6 shadow-lg flex flex-col">
+                <h3 class="text-base font-bold text-slate-200 mb-1">Upcoming Live Classes</h3>
+                <p class="text-xs text-slate-450 mb-4">Join scheduled Meet sessions with instructors</p>
+
+                <div class="space-y-4 overflow-y-auto max-h-[300px]">
+                    @forelse($upcomingClasses as $class)
+                    <div class="p-4 bg-slate-900/50 border border-slate-850 rounded-2xl space-y-3 hover:border-slate-800 transition-colors">
+                        <div>
+                            <span class="text-[10px] uppercase font-bold text-amber-400 tracking-wider">Scheduled Live</span>
+                            <h4 class="text-sm font-bold text-slate-200 mt-0.5 truncate">{{ $class->title }}</h4>
+                            <p class="text-[10px] text-slate-500 mt-0.5 truncate">Subject: {{ $class->subject->title }}</p>
+                        </div>
+                        <div class="flex justify-between items-center text-xs text-slate-405">
+                            <div class="flex items-center space-x-1">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>{{ $class->datetime->format('M d, H:i') }}</span>
+                            </div>
+                            <a href="{{ route('live-classes.join', $class->id) }}" target="_blank" class="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-[10px] transition-all duration-200 shadow-md shadow-brand-600/10">
+                                Launch Class
+                            </a>
+                        </div>
+                    </div>
+                    @empty
+                    <div class="text-center py-8 text-xs text-slate-555">No upcoming classes scheduled.</div>
+                    @endforelse
+                </div>
+            </div>
+
+            <!-- Profile Settings Card -->
+            <div class="bg-slate-950/40 border border-slate-800 rounded-3xl p-6 shadow-lg space-y-4">
+                <div>
+                    <h3 class="text-base font-bold text-slate-100 mb-1">My Profile Settings</h3>
+                    <p class="text-xs text-slate-400">Update your personal account details</p>
+                </div>
+                <form action="{{ route('profile.update') }}" method="POST" class="space-y-3 p-4 bg-slate-900/40 border border-slate-850 rounded-2xl">
+                    @csrf
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-455 uppercase tracking-wider mb-1">Full Name</label>
+                        <input name="name" type="text" required value="{{ Auth::user()->name }}" class="w-full px-3 py-2 rounded-xl bg-slate-955 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-455 uppercase tracking-wider mb-1">Email Address</label>
+                        <input name="email" type="email" required value="{{ Auth::user()->email }}" class="w-full px-3 py-2 rounded-xl bg-slate-955 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-455 uppercase tracking-wider mb-1">New Password (Leave blank to keep current)</label>
+                        <input name="password" type="password" placeholder="••••••••" class="w-full px-3 py-2 rounded-xl bg-slate-955 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-455 uppercase tracking-wider mb-1">Confirm New Password</label>
+                        <input name="password_confirmation" type="password" placeholder="••••••••" class="w-full px-3 py-2 rounded-xl bg-slate-955 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+                    </div>
+                    <button type="submit" class="w-full py-2 px-3 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-brand-600/10">
+                        Update Settings
+                    </button>
+                </form>
+            </div>
+
         </div>
 
     </div>

@@ -61,13 +61,22 @@
 
                     <!-- Student Enrollment Buttons -->
                     @if(Auth::user()->isStudent())
-                        @if(in_array($course->id, $enrolledCourseIds))
-                            <span class="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold select-none flex items-center space-x-1">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                </svg>
-                                <span>Enrolled</span>
-                            </span>
+                        @if(array_key_exists($course->id, $enrollmentsMap))
+                            @if($enrollmentsMap[$course->id])
+                                <span class="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold select-none flex items-center space-x-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span>Enrolled</span>
+                                </span>
+                            @else
+                                <span class="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold select-none flex items-center space-x-1">
+                                    <svg class="w-3.5 h-3.5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>Pending Approval</span>
+                                </span>
+                            @endif
                         @else
                             <form action="{{ route('enrollments.enroll') }}" method="POST">
                                 @csrf

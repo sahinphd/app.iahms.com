@@ -57,6 +57,31 @@
                 <span class="text-[10px] text-slate-500 mt-1.5 block">Select to replace the current thumbnail image.</span>
             </div>
 
+            <div>
+                <label for="school_class_id" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Target School Class (Course Scope)</label>
+                <select id="school_class_id" name="school_class_id"
+                    class="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-800 focus:border-brand-500 text-slate-100 focus:outline-none transition-colors duration-200 text-sm cursor-pointer">
+                    <option value="">All Classes (Publicly visible to all students)</option>
+                    @foreach($classes as $class)
+                        <option value="{{ $class->id }}" {{ old('school_class_id', $course->school_class_id) == $class->id ? 'selected' : '' }}>{{ $class->name }}</option>
+                    @endforeach
+                </select>
+                <span class="text-[10px] text-slate-500 mt-1.5 block">Restrict this course visibility and enrollment capability to students of a specific class.</span>
+            </div>
+
+            @if(Auth::user()->isAdmin())
+            <div>
+                <label for="teacher_id" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Assign Course Teacher</label>
+                <select id="teacher_id" name="teacher_id"
+                    class="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-800 focus:border-brand-500 text-slate-100 focus:outline-none transition-colors duration-200 text-sm cursor-pointer">
+                    @foreach($teachers as $teacher)
+                        <option value="{{ $teacher->id }}" {{ old('teacher_id', $course->teacher_id) == $teacher->id ? 'selected' : '' }}>{{ $teacher->name }} ({{ $teacher->email }})</option>
+                    @endforeach
+                </select>
+                <span class="text-[10px] text-slate-500 mt-1.5 block">Select which teacher manages this course curriculum.</span>
+            </div>
+            @endif
+
             <div class="flex items-center space-x-3 select-none">
                 <input id="is_published" name="is_published" type="checkbox" value="1"
                     class="rounded bg-slate-900 border-slate-800 text-brand-600 focus:ring-brand-500/30"

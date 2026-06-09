@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Course;
+use App\Models\Subject;
 use App\Models\LiveClass;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,24 +15,27 @@ class LiveClassController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'course_id' => 'required|exists:courses,id',
+            'subject_id' => 'required|exists:subjects,id',
             'title' => 'required|string|max:255',
             'datetime' => 'required|date|after:now',
             'link' => 'required|url',
+            'duration_minutes' => 'required|integer|min:5|max:480',
         ]);
 
-        $course = Course::findOrFail($request->course_id);
+        $subject = Subject::findOrFail($request->subject_id);
         $user = Auth::user();
 
-        if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
-            abort(403, 'Unauthorized.');
+        // Check if teacher is assigned to this subject
+        if (!$user->isAssignedToSubject($subject)) {
+            abort(403, 'Unauthorized. You must be assigned to this subject to schedule live classes.');
         }
 
         LiveClass::create([
-            'course_id' => $request->course_id,
+            'subject_id' => $request->subject_id,
             'title' => $request->title,
             'datetime' => $request->datetime,
             'link' => $request->link,
+            'duration_minutes' => $request->duration_minutes,
         ]);
 
         return redirect()->back()->with('success', 'Live class scheduled successfully.');
@@ -47,19 +50,21 @@ class LiveClassController extends Controller
             'title' => 'required|string|max:255',
             'datetime' => 'required|date|after:now',
             'link' => 'required|url',
+            'duration_minutes' => 'required|integer|min:5|max:480',
         ]);
 
         $user = Auth::user();
-        $course = $liveClass->course;
+        $subject = $liveClass->subject;
 
-        if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
-            abort(403, 'Unauthorized.');
+        if (!$user->isAssignedToSubject($subject)) {
+            abort(403, 'Unauthorized. You must be assigned to this subject to manage live classes.');
         }
 
         $liveClass->update([
             'title' => $request->title,
             'datetime' => $request->datetime,
             'link' => $request->link,
+            'duration_minutes' => $request->duration_minutes,
         ]);
 
         return redirect()->back()->with('success', 'Live class updated successfully.');
@@ -71,14 +76,53 @@ class LiveClassController extends Controller
     public function destroy(LiveClass $liveClass)
     {
         $user = Auth::user();
-        $course = $liveClass->course;
+        $subject = $liveClass->subject;
 
-        if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
-            abort(403, 'Unauthorized.');
+        if (!$user->isAssignedToSubject($subject)) {
+            abort(403, 'Unauthorized. You must be assigned to this subject to cancel live classes.');
         }
 
         $liveClass->delete();
 
         return redirect()->back()->with('success', 'Live class deleted successfully.');
+    }
+
+    /**
+     * Join a live class, record attendance, and redirect to the class link.
+     */
+    public function join(LiveClass $liveClass)
+    {
+        $user = Auth::user();
+        $subject = $liveClass->subject;
+        $course = $subject->course;
+
+        // Check access
+        if (!$user->isAssignedToSubject($subject)) {
+            $isEnrolled = $user->enrolledCourses()
+                ->where('course_id', $course->id)
+                ->where('enrollments.is_approved', true)
+                ->exists();
+            if (!$isEnrolled) {
+                abort(403, 'You must have an approved enrollment in this course to join this live class.');
+            }
+        }
+
+        if ($user->isStudent()) {
+            \App\Models\LiveClassAttendance::firstOrCreate([
+                'user_id' => $user->id,
+                'live_class_id' => $liveClass->id,
+            ], [
+                'attended_at' => now(),
+            ]);
+
+            \App\Models\UsageLog::create([
+                'user_id' => $user->id,
+                'course_id' => $course->id,
+                'action' => 'join_live_class',
+                'details' => "Joined live class: {$liveClass->title}",
+            ]);
+        }
+
+        return redirect()->away($liveClass->link);
     }
 }

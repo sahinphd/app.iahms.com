@@ -13,6 +13,7 @@ class Lecture extends Model
         'module_id',
         'title',
         'file_path',
+        'duration',
     ];
 
     /**

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Course;
+use App\Models\Subject;
 use App\Models\Module;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,19 +15,19 @@ class ModuleController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'course_id' => 'required|exists:courses,id',
+            'subject_id' => 'required|exists:subjects,id',
             'title' => 'required|string|max:255',
         ]);
 
-        $course = Course::findOrFail($request->course_id);
+        $subject = Subject::findOrFail($request->subject_id);
         $user = Auth::user();
 
-        if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
-            abort(403, 'Unauthorized.');
+        if (!$user->hasPermission('manage_syllabus') || !$user->isAssignedToSubject($subject)) {
+            abort(403, 'Unauthorized. You must be assigned to this subject to manage its syllabus.');
         }
 
         Module::create([
-            'course_id' => $request->course_id,
+            'subject_id' => $request->subject_id,
             'title' => $request->title,
         ]);
 
@@ -44,10 +44,10 @@ class ModuleController extends Controller
         ]);
 
         $user = Auth::user();
-        $course = $module->course;
+        $subject = $module->subject;
 
-        if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
-            abort(403, 'Unauthorized.');
+        if (!$user->hasPermission('manage_syllabus') || !$user->isAssignedToSubject($subject)) {
+            abort(403, 'Unauthorized. You must be assigned to this subject to manage its syllabus.');
         }
 
         $module->update([
@@ -63,10 +63,10 @@ class ModuleController extends Controller
     public function destroy(Module $module)
     {
         $user = Auth::user();
-        $course = $module->course;
+        $subject = $module->subject;
 
-        if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
-            abort(403, 'Unauthorized.');
+        if (!$user->hasPermission('manage_syllabus') || !$user->isAssignedToSubject($subject)) {
+            abort(403, 'Unauthorized. You must be assigned to this subject to manage its syllabus.');
         }
 
         $module->delete();
@@ -74,3 +74,4 @@ class ModuleController extends Controller
         return redirect()->back()->with('success', 'Module deleted successfully.');
     }
 }
+

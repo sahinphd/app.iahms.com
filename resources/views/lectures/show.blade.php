@@ -3,6 +3,9 @@
 @section('page_title', 'Video Lecture')
 
 @section('content')
+<!-- Load Hls.js library for cross-browser HLS streaming support (Mux / Cloudflare streams) -->
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+
 <div class="space-y-6 max-w-5xl mx-auto">
 
     <!-- Back to Course Link -->
@@ -26,7 +29,7 @@
                 <!-- Loading State overlay -->
                 <div id="video-loader" class="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center space-y-4 z-20 transition-opacity duration-300">
                     <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-brand-500"></div>
-                    <p class="text-xs text-slate-400 font-medium tracking-wide">Requesting signed URL from Google Cloud...</p>
+                    <p class="text-xs text-slate-400 font-medium tracking-wide">Requesting signed URL from Storage Provider...</p>
                 </div>
 
                 <!-- Error State overlay -->
@@ -79,12 +82,21 @@
                         <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider truncate">{{ $mod->title }}</h4>
                         <div class="space-y-1">
                             @foreach($mod->lectures as $lect)
+                                @php
+                                    $isCompletedLect = in_array($lect->id, $completedLectureIds);
+                                @endphp
                                 <a href="{{ route('lectures.show', $lect->id) }}"
                                     class="flex items-center space-x-2 px-3 py-2 rounded-xl text-xs transition-all duration-200 
                                     {{ $lect->id === $lecture->id ? 'bg-brand-600/20 text-brand-400 border border-brand-500/30 font-semibold' : 'text-slate-400 hover:bg-slate-900/60 hover:text-slate-200 border border-transparent' }}">
-                                    <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                    </svg>
+                                    @if($isCompletedLect)
+                                        <svg class="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    @else
+                                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                        </svg>
+                                    @endif
                                     <span class="truncate">{{ $lect->title }}</span>
                                 </a>
                             @endforeach
@@ -100,17 +112,24 @@
 
 <!-- Secure Signed URL API Fetcher -->
 <script>
-    const streamApiUrl = "{{ route('lectures.stream', $lecture->id) }}";
+    const streamApiUrl = "{{ route('lectures.stream', $lecture->id, false) }}";
     const loader = document.getElementById('video-loader');
     const player = document.getElementById('lms-video-player');
     const errorOverlay = document.getElementById('video-error');
     const errorMessage = document.getElementById('error-message');
+    let hlsInstance = null;
 
     function requestVideoUrl() {
         // Show loading state
         loader.classList.remove('hidden');
         errorOverlay.classList.add('hidden');
         player.classList.add('hidden');
+
+        // Destroy old Hls instance if exists to prevent leaks
+        if (hlsInstance) {
+            hlsInstance.destroy();
+            hlsInstance = null;
+        }
 
         fetch(streamApiUrl, {
             headers: {
@@ -126,13 +145,38 @@
         })
         .then(data => {
             if (data.video_url) {
-                // Populate URL and display player
-                player.src = data.video_url;
                 loader.classList.add('hidden');
                 player.classList.remove('hidden');
-                player.play().catch(e => {
-                    console.log("Auto-play blocked by browser. User interaction required.");
-                });
+
+                // Determine if URL is HLS stream (ends with .m3u8 or contains stream.mux.com)
+                const isHls = data.video_url.includes('.m3u8') || data.video_url.includes('stream.mux.com');
+
+                if (isHls) {
+                    if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+                        hlsInstance = new Hls();
+                        hlsInstance.loadSource(data.video_url);
+                        hlsInstance.attachMedia(player);
+                        hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+                            player.play().catch(e => {
+                                console.log("Auto-play blocked by browser. User interaction required.");
+                            });
+                        });
+                    } else if (player.canPlayType('application/vnd.apple.mpegurl')) {
+                        // Native HLS support (Safari / iOS)
+                        player.src = data.video_url;
+                        player.play().catch(e => {
+                            console.log("Auto-play blocked by browser. User interaction required.");
+                        });
+                    } else {
+                        throw new Error('Your browser does not support HLS streaming.');
+                    }
+                } else {
+                    // Standard file playback (Local/GCS/R2 MP4 files)
+                    player.src = data.video_url;
+                    player.play().catch(e => {
+                        console.log("Auto-play blocked by browser. User interaction required.");
+                    });
+                }
             } else if (data.error) {
                 throw new Error(data.error);
             } else {
@@ -144,6 +188,76 @@
             loader.classList.add('hidden');
             errorMessage.textContent = error.message || 'An unknown network error occurred.';
             errorOverlay.classList.remove('hidden');
+        });
+    }
+
+    // Video Progress Tracking Script
+    const initialSecondsWatched = {{ $initialSecondsWatched }};
+    const progressApiUrl = "{{ route('lectures.progress', $lecture->id, false) }}";
+    let lastSavedTime = 0;
+    let initialSeekApplied = false;
+    let isCompleted = false;
+
+    // Track metadata loaded to apply initial seek position
+    player.addEventListener('loadedmetadata', function() {
+        if (!initialSeekApplied && initialSecondsWatched > 0) {
+            player.currentTime = initialSecondsWatched;
+            initialSeekApplied = true;
+        }
+    });
+
+    // Track time update
+    player.addEventListener('timeupdate', function() {
+        const currentTime = Math.floor(player.currentTime);
+        const duration = player.duration;
+
+        // Auto-seek fallback if loadedmetadata didn't trigger correctly
+        if (!initialSeekApplied && initialSecondsWatched > 0 && duration > 0) {
+            player.currentTime = initialSecondsWatched;
+            initialSeekApplied = true;
+        }
+
+        // Save progress every 5 seconds or if 90% is reached
+        if (duration > 0) {
+            const percentCompleted = (currentTime / duration) * 100;
+            
+            // Check if 90% completion reached
+            if (percentCompleted >= 90 && !isCompleted) {
+                isCompleted = true;
+                saveProgress(currentTime, true);
+            } else if (currentTime - lastSavedTime >= 5) {
+                lastSavedTime = currentTime;
+                saveProgress(currentTime, isCompleted);
+            }
+        }
+    });
+
+    // Handle video end
+    player.addEventListener('ended', function() {
+        isCompleted = true;
+        saveProgress(Math.floor(player.currentTime), true);
+    });
+
+    function saveProgress(secondsWatched, completed) {
+        // Send watch metrics to backend via AJAX (do not reload page)
+        fetch(progressApiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': "{{ csrf_token() }}",
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                seconds_watched: secondsWatched,
+                is_completed: completed ? 1 : 0
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            console.log('Progress saved successfully');
+        })
+        .catch(err => {
+            console.error('Error saving progress:', err);
         });
     }
 

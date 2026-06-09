@@ -1,9 +1,19 @@
+@php
+    $logoText = \App\Models\Setting::get('site_logo_text', 'IAHMS LMS');
+    $logoSubtext = \App\Models\Setting::get('site_logo_subtext', 'SECURE LEARNING');
+    $primaryColor = \App\Models\Setting::get('theme_primary_color', '#8b5cf6');
+    $bgColor = \App\Models\Setting::get('theme_bg_color', '#0f172a');
+    $sidebarColor = \App\Models\Setting::get('theme_sidebar_color', '#020617');
+
+    $primary600 = \App\Models\Setting::darkenColor($primaryColor, 10);
+    $primary700 = \App\Models\Setting::darkenColor($primaryColor, 20);
+@endphp
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-slate-900">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ config('app.name', 'LMS') }} - Secure Learning Portal</title>
+    <title>{{ $logoText }} - Secure Learning Portal</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,11 +31,15 @@
                         brand: {
                             50: '#f5f3ff',
                             100: '#ede9fe',
-                            500: '#8b5cf6',
-                            600: '#7c3aed',
-                            700: '#6d28d9',
-                            800: '#5b21b6',
-                            900: '#4c1d95',
+                            500: 'var(--color-brand-500)',
+                            600: 'var(--color-brand-600)',
+                            700: 'var(--color-brand-700)',
+                            800: 'var(--color-brand-700)',
+                            900: 'var(--color-brand-700)',
+                        },
+                        slate: {
+                            900: 'var(--color-bg-slate-900)',
+                            950: 'var(--color-bg-slate-950)',
                         }
                     }
                 }
@@ -33,6 +47,14 @@
         }
     </script>
     <style>
+        :root {
+            --color-brand-500: {{ $primaryColor }};
+            --color-brand-600: {{ $primary600 }};
+            --color-brand-700: {{ $primary700 }};
+            --color-bg-slate-900: {{ $bgColor }};
+            --color-bg-slate-950: {{ $sidebarColor }};
+        }
+
         /* Modern backdrop/scroll behavior styling */
         ::-webkit-scrollbar {
             width: 6px;
@@ -42,24 +64,25 @@
             background: rgba(15, 23, 42, 0.5);
         }
         ::-webkit-scrollbar-thumb {
-            background: rgba(139, 92, 246, 0.4);
+            background: var(--color-brand-500);
             border-radius: 4px;
+            opacity: 0.4;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: rgba(139, 92, 246, 0.6);
+            background: var(--color-brand-600);
         }
     </style>
 </head>
-<body class="h-full text-slate-100 flex flex-col md:flex-row overflow-hidden">
+<body class="h-full text-slate-100 flex flex-col md:flex-row overflow-hidden bg-slate-900">
 
     <!-- Mobile Header -->
     <div class="md:hidden flex items-center justify-between bg-slate-950 px-4 py-3 border-b border-slate-800 w-full z-20">
         <div class="flex items-center space-x-2">
             <div class="p-1.5 rounded-lg bg-gradient-to-tr from-brand-600 to-indigo-500 text-white font-bold shadow-md shadow-brand-500/20">
-                LMS
+                {{ substr($logoText, 0, 3) }}
             </div>
             <span class="font-semibold text-lg tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-brand-400 to-indigo-300">
-                IAHMS Portal
+                {{ $logoText }}
             </span>
         </div>
         <button id="mobile-menu-toggle" class="text-slate-400 hover:text-slate-200 focus:outline-none">
@@ -75,11 +98,11 @@
         <div class="px-6 py-5 border-b border-slate-800/80 flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <div class="p-2 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 text-white font-bold shadow-lg shadow-brand-500/20 text-center w-10">
-                    L
+                    {{ substr($logoText, 0, 1) }}
                 </div>
                 <div class="flex flex-col">
-                    <span class="font-bold text-md tracking-wider text-slate-200 leading-tight">IAHMS LMS</span>
-                    <span class="text-[10px] text-slate-400 font-medium tracking-wide">SECURE LEARNING</span>
+                    <span class="font-bold text-md tracking-wider text-slate-200 leading-tight">{{ $logoText }}</span>
+                    <span class="text-[10px] text-slate-400 font-medium tracking-wide">{{ $logoSubtext }}</span>
                 </div>
             </div>
             <button id="mobile-menu-close" class="md:hidden text-slate-500 hover:text-slate-300">
@@ -125,6 +148,58 @@
                     </svg>
                     <span>Courses</span>
                 </a>
+
+                @if(Auth::user()->hasPermission('manage_classes'))
+                <a href="{{ route('admin.classes.index') }}" class="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group {{ request()->routeIs('admin.classes.*') ? 'bg-gradient-to-r from-brand-600/30 to-brand-700/10 text-brand-400 border-l-4 border-brand-500 pl-3' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100' }}">
+                    <svg class="h-5 w-5 {{ request()->routeIs('admin.classes.*') ? 'text-brand-400' : 'text-slate-400 group-hover:text-slate-200' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    <span>Class Setup</span>
+                </a>
+                @endif
+
+                @if(Auth::user()->isAdmin() || Auth::user()->hasPermission('manage_student_profiles') || Auth::user()->hasPermission('manage_teacher_profiles'))
+                <a href="{{ route('admin.users.index') }}" class="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group {{ request()->routeIs('admin.users.*') ? 'bg-gradient-to-r from-brand-600/30 to-brand-700/10 text-brand-400 border-l-4 border-brand-500 pl-3' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100' }}">
+                    <svg class="h-5 w-5 {{ request()->routeIs('admin.users.*') ? 'text-brand-400' : 'text-slate-400 group-hover:text-slate-200' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <span>User Directory</span>
+                </a>
+                @endif
+
+                @if(Auth::user()->hasPermission('manage_role_permissions'))
+                <a href="{{ route('admin.permissions.index') }}" class="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group {{ request()->routeIs('admin.permissions.*') ? 'bg-gradient-to-r from-brand-600/30 to-brand-700/10 text-brand-400 border-l-4 border-brand-500 pl-3' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100' }}">
+                    <svg class="h-5 w-5 {{ request()->routeIs('admin.permissions.*') ? 'text-brand-400' : 'text-slate-400 group-hover:text-slate-200' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    <span>Role Permissions</span>
+                </a>
+                @endif
+
+                @if(Auth::user()->isAdmin())
+                <a href="{{ route('admin.theme') }}" class="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group {{ request()->routeIs('admin.theme') ? 'bg-gradient-to-r from-brand-600/30 to-brand-700/10 text-brand-400 border-l-4 border-brand-500 pl-3' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100' }}">
+                    <svg class="h-5 w-5 {{ request()->routeIs('admin.theme') ? 'text-brand-400' : 'text-slate-400 group-hover:text-slate-200' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>Theme Settings</span>
+                </a>
+
+                <a href="{{ route('admin.settings.storage') }}" class="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group {{ request()->routeIs('admin.settings.storage') ? 'bg-gradient-to-r from-brand-600/30 to-brand-700/10 text-brand-400 border-l-4 border-brand-500 pl-3' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100' }}">
+                    <svg class="h-5 w-5 {{ request()->routeIs('admin.settings.storage') ? 'text-brand-400' : 'text-slate-400 group-hover:text-slate-200' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20" />
+                    </svg>
+                    <span>Storage Setup</span>
+                </a>
+                @endif
+
+                @if(Auth::user()->hasPermission('view_reports'))
+                <a href="{{ route('admin.reports.index') }}" class="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group {{ request()->routeIs('admin.reports.*') ? 'bg-gradient-to-r from-brand-600/30 to-brand-700/10 text-brand-400 border-l-4 border-brand-500 pl-3' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100' }}">
+                    <svg class="h-5 w-5 {{ request()->routeIs('admin.reports.*') ? 'text-brand-400' : 'text-slate-400 group-hover:text-slate-200' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z" />
+                    </svg>
+                    <span>Activity Reports</span>
+                </a>
+                @endif
             @else
                 <a href="{{ route('login') }}" class="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-900 hover:text-slate-100 transition-all duration-200">
                     <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -176,7 +251,7 @@
         <!-- Dynamic Flash Alerts -->
         <div class="px-4 md:px-8 mt-4">
             @if(session('success'))
-                <div class="flex items-center justify-between p-4 mb-4 text-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-2xl shadow-lg shadow-emerald-500/5 transition-all duration-300 animate-pulse">
+                <div class="flex items-center justify-between p-4 mb-4 text-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-2xl shadow-lg shadow-emerald-500/5 transition-all duration-300">
                     <div class="flex items-center space-x-2">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />

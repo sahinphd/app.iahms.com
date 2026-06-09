@@ -12,6 +12,11 @@ class Enrollment extends Model
     protected $fillable = [
         'student_id',
         'course_id',
+        'is_approved',
+    ];
+
+    protected $casts = [
+        'is_approved' => 'boolean',
     ];
 
     /**

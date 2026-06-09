@@ -42,15 +42,36 @@ class EnrollmentController extends Controller
         Enrollment::create([
             'student_id' => $user->id,
             'course_id' => $course->id,
+            'is_approved' => false, // Student enrollments must be approved by teacher/admin
         ]);
 
-        return redirect()->route('courses.show', $course->id)->with('success', 'Enrolled in course successfully!');
+        return redirect()->route('courses.show', $course->id)->with('success', 'Enrollment request submitted successfully! Waiting for approval from the instructor or administrator.');
+    }
+
+    /**
+     * Approve a pending enrollment.
+     */
+    public function approve(Enrollment $enrollment)
+    {
+        $user = Auth::user();
+        $course = $enrollment->course;
+
+        // Must be admin, or the teacher of this course
+        if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $enrollment->update([
+            'is_approved' => true,
+        ]);
+
+        return redirect()->back()->with('success', 'Student enrollment approved successfully!');
     }
 
     /**
      * Unenroll a student from a course.
      */
-    public function unenroll(Course $course)
+    public function unenroll(Course $course, Request $request)
     {
         $user = Auth::user();
 
@@ -58,15 +79,24 @@ class EnrollmentController extends Controller
 
         if ($user->isStudent()) {
             $enrollment->where('student_id', $user->id);
-        } elseif (!$user->isAdmin()) {
-            abort(403, 'Unauthorized.');
+        } else {
+            // Must be admin, or the teacher of this course
+            if (!$user->isAdmin() && $course->teacher_id !== $user->id) {
+                abort(403, 'Unauthorized.');
+            }
+
+            $request->validate([
+                'student_id' => 'required|exists:users,id',
+            ]);
+
+            $enrollment->where('student_id', $request->student_id);
         }
 
         $record = $enrollment->first();
 
         if ($record) {
             $record->delete();
-            return redirect()->route('courses.index')->with('success', 'Unenrolled from course successfully.');
+            return redirect()->back()->with('success', 'Enrollment removed/rejected successfully.');
         }
 
         return redirect()->back()->with('error', 'Enrollment record not found.');

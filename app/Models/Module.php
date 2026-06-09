@@ -10,16 +10,16 @@ class Module extends Model
     use HasFactory;
 
     protected $fillable = [
-        'course_id',
+        'subject_id',
         'title',
     ];
 
     /**
-     * Relationship: The course this module belongs to.
+     * Relationship: The subject this module belongs to.
      */
-    public function course()
+    public function subject()
     {
-        return $this->belongsTo(Course::class);
+        return $this->belongsTo(Subject::class);
     }
 
     /**
