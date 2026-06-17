@@ -1,7 +1,7 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Prevent directory listing
+    # Prevent directory listing for safety
     Options -Indexes
 
     # Avoid loops by ignoring requests that are already rewritten to public/
