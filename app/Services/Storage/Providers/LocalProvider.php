@@ -31,6 +31,31 @@ class LocalProvider implements StorageProvider
     }
 
     /**
+     * Generate a signed upload configuration for local storage upload fallback.
+     */
+    public function generateSignedUploadUrl(string $path, string $contentType, int $expiryMinutes = 15): array
+    {
+        $filename = time() . '_' . basename($path);
+        $fullPath = rtrim(dirname($path), '/') . '/' . $filename;
+
+        // Generate temporary signed URL pointing to local server endpoint
+        $url = URL::temporarySignedRoute(
+            'local.storage.direct-upload',
+            now()->addMinutes($expiryMinutes),
+            ['path' => $fullPath]
+        );
+
+        return [
+            'upload_url' => $url,
+            'file_path' => $fullPath,
+            'method' => 'PUT',
+            'headers' => [
+                'Content-Type' => $contentType,
+            ]
+        ];
+    }
+
+    /**
      * Delete a file from the local public disk.
      */
     public function delete(string $filePath): bool

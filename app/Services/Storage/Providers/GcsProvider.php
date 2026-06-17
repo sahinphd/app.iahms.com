@@ -73,6 +73,38 @@ class GcsProvider implements StorageProvider
     }
 
     /**
+     * Generate a signed upload configuration for uploading directly to GCP bucket.
+     */
+    public function generateSignedUploadUrl(string $path, string $contentType, int $expiryMinutes = 15): array
+    {
+        $client = $this->getClient();
+        $bucketName = Setting::get('gcp_bucket');
+        $bucket = $client->bucket($bucketName);
+
+        $filename = time() . '_' . basename($path);
+        $fullPath = rtrim(dirname($path), '/') . '/' . $filename;
+
+        $object = $bucket->object($fullPath);
+        $url = $object->signedUrl(
+            now()->addMinutes($expiryMinutes),
+            [
+                'method' => 'PUT',
+                'contentType' => $contentType,
+                'version' => 'v4',
+            ]
+        );
+
+        return [
+            'upload_url' => $url,
+            'file_path' => $fullPath,
+            'method' => 'PUT',
+            'headers' => [
+                'Content-Type' => $contentType,
+            ]
+        ];
+    }
+
+    /**
      * Delete an object from GCP bucket.
      */
     public function delete(string $filePath): bool

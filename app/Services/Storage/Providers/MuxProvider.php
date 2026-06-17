@@ -141,6 +141,42 @@ class MuxProvider implements StorageProvider
     }
 
     /**
+     * Generate a signed upload configuration for Mux direct upload.
+     */
+    public function generateSignedUploadUrl(string $path, string $contentType, int $expiryMinutes = 15): array
+    {
+        $auth = $this->getAuth();
+        $signingKeyId = Setting::get('mux_signing_key_id');
+        $playbackPolicy = $signingKeyId ? 'signed' : 'public';
+
+        // Create a Mux Direct Upload URL
+        $uploadResponse = \Illuminate\Support\Facades\Http::withBasicAuth($auth[0], $auth[1])
+            ->post('https://api.mux.com/video/v1/uploads', [
+                'cors_origin' => '*',
+                'new_asset_settings' => [
+                    'playback_policy' => [$playbackPolicy]
+                ]
+            ]);
+
+        if (!$uploadResponse->successful()) {
+            throw new \Exception("Mux Direct Upload creation failed: " . $uploadResponse->body());
+        }
+
+        $uploadData = $uploadResponse->json('data');
+        $uploadUrl = $uploadData['url'];
+        $uploadId = $uploadData['id'];
+
+        return [
+            'upload_url' => $uploadUrl,
+            'file_path' => "mux://{$uploadId}",
+            'method' => 'PUT',
+            'headers' => [
+                'Content-Type' => $contentType,
+            ]
+        ];
+    }
+
+    /**
      * Delete video asset from Mux.
      */
     public function delete(string $filePath): bool

@@ -81,7 +81,12 @@ Route::middleware('auth')->group(function () {
 
         // Lecture Management
         Route::post('/lectures', [LectureController::class, 'store'])->name('lectures.store');
+        Route::post('/lectures/generate-upload-url', [LectureController::class, 'generateUploadUrl'])->name('lectures.generate-upload-url');
         Route::delete('/lectures/{lecture}', [LectureController::class, 'destroy'])->name('lectures.destroy');
+
+        Route::put('/lectures/direct-upload-local/{path}', [LectureController::class, 'localDirectUpload'])
+            ->name('local.storage.direct-upload')
+            ->where('path', '.*');
 
         // Material Management
         Route::post('/materials', [MaterialController::class, 'store'])->name('materials.store');

@@ -398,9 +398,10 @@
                                                 <div id="add-lecture-modal-{{ $module->id }}" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
                                                     <div class="bg-slate-955 border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4">
                                                         <h4 class="text-sm font-bold text-slate-100">Add Lecture to "{{ $module->title }}"</h4>
-                                                        <form action="{{ route('lectures.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+                                                        <form action="{{ route('lectures.store') }}" method="POST" enctype="multipart/form-data" class="lecture-upload-form space-y-4">
                                                             @csrf
                                                             <input type="hidden" name="module_id" value="{{ $module->id }}">
+                                                            <input type="hidden" name="video_path" class="video-path-input">
                                                             <div>
                                                                 <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Lecture Title</label>
                                                                 <input name="title" type="text" required class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-100 focus:outline-none focus:border-brand-500">
@@ -411,12 +412,24 @@
                                                             </div>
                                                             <div>
                                                                 <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Video File</label>
-                                                                <input name="video" type="file" accept="video/*" required class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-450 focus:outline-none">
+                                                                <input name="video" type="file" accept="video/*" required class="video-file-input w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-450 focus:outline-none">
                                                                 <span class="text-[9px] text-slate-600 mt-1 block">MP4 or standard video up to 100MB</span>
                                                             </div>
+                                                            
+                                                            <!-- Progress Bar Container -->
+                                                            <div class="upload-progress-container hidden mt-3 space-y-1.5">
+                                                                <div class="flex justify-between text-[10px] text-slate-450 font-bold uppercase tracking-wider">
+                                                                    <span class="upload-status-text">Uploading to Cloud...</span>
+                                                                    <span class="upload-percent-text">0%</span>
+                                                                </div>
+                                                                <div class="w-full bg-slate-900 rounded-full h-2 border border-slate-800">
+                                                                    <div class="upload-progress-bar bg-brand-500 h-2 rounded-full transition-all duration-150" style="width: 0%"></div>
+                                                                </div>
+                                                            </div>
+
                                                             <div class="flex justify-end space-x-2 pt-2">
-                                                                <button type="button" onclick="toggleModal('add-lecture-modal-{{ $module->id }}')" class="px-3 py-1.5 rounded-xl border border-slate-800 text-xs font-semibold text-slate-400 hover:bg-slate-900">Cancel</button>
-                                                                <button type="submit" class="px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold">Upload Lecture</button>
+                                                                <button type="button" onclick="toggleModal('add-lecture-modal-{{ $module->id }}')" class="cancel-btn px-3 py-1.5 rounded-xl border border-slate-800 text-xs font-semibold text-slate-400 hover:bg-slate-900">Cancel</button>
+                                                                <button type="submit" class="submit-btn px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold">Upload Lecture</button>
                                                             </div>
                                                         </form>
                                                     </div>
@@ -803,5 +816,136 @@
             }
         }
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.lecture-upload-form').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const videoPathInput = form.querySelector('.video-path-input');
+                const fileInput = form.querySelector('.video-file-input');
+                
+                // If path is already generated and set, let the form submit normally
+                if (videoPathInput && videoPathInput.value) {
+                    return;
+                }
+                
+                // Otherwise, prevent form submission and upload via JS
+                if (fileInput && fileInput.files.length > 0) {
+                    e.preventDefault();
+                    
+                    const file = fileInput.files[0];
+                    const moduleId = form.querySelector('input[name="module_id"]').value;
+                    const submitBtn = form.querySelector('.submit-btn');
+                    const cancelBtn = form.querySelector('.cancel-btn');
+                    const progressContainer = form.querySelector('.upload-progress-container');
+                    const progressBar = form.querySelector('.upload-progress-bar');
+                    const percentText = form.querySelector('.upload-percent-text');
+                    const statusText = form.querySelector('.upload-status-text');
+                    
+                    // Disable buttons
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.textContent = 'Uploading...';
+                        submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    }
+                    if (cancelBtn) {
+                        cancelBtn.disabled = true;
+                        cancelBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    }
+                    if (progressContainer) progressContainer.classList.remove('hidden');
+                    
+                    statusText.textContent = "Requesting Upload URL...";
+                    
+                    // Step 1: Request signed upload config from Laravel
+                    const formData = new FormData();
+                    formData.append('module_id', moduleId);
+                    formData.append('filename', file.name);
+                    formData.append('content_type', file.type);
+                    
+                    fetch('{{ route("lectures.generate-upload-url") }}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        },
+                        body: formData
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(err => { throw new Error(err.error || 'Failed to generate signed URL'); });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        const uploadUrl = data.upload_url;
+                        const filePath = data.file_path;
+                        const method = data.method || 'PUT';
+                        const headers = data.headers || {};
+                        
+                        statusText.textContent = "Uploading Video File...";
+                        
+                        // Step 2: Perform direct PUT upload using XMLHttpRequest (to track progress)
+                        const xhr = new XMLHttpRequest();
+                        xhr.open(method, uploadUrl);
+                        
+                        // Set headers
+                        Object.keys(headers).forEach(key => {
+                            xhr.setRequestHeader(key, headers[key]);
+                        });
+                        
+                        // Track progress
+                        xhr.upload.onprogress = function(event) {
+                            if (event.lengthComputable) {
+                                const percent = Math.round((event.loaded / event.total) * 100);
+                                if (progressBar) progressBar.style.width = percent + '%';
+                                if (percentText) percentText.textContent = percent + '%';
+                            }
+                        };
+                        
+                        xhr.onload = function() {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                statusText.textContent = "Upload Complete! Saving...";
+                                videoPathInput.value = filePath;
+                                
+                                // Disable file input so it doesn't upload the file body again
+                                fileInput.removeAttribute('name');
+                                
+                                // Submit the form to database
+                                form.submit();
+                            } else {
+                                alert('Upload failed: ' + (xhr.statusText || 'Unknown error'));
+                                resetButtons();
+                            }
+                        };
+                        
+                        xhr.onerror = function() {
+                            alert('Upload failed due to a network error.');
+                            resetButtons();
+                        };
+                        
+                        xhr.send(file);
+                    })
+                    .catch(err => {
+                        alert('Error: ' + err.message);
+                        resetButtons();
+                    });
+                    
+                    function resetButtons() {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = 'Upload Lecture';
+                            submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        }
+                        if (cancelBtn) {
+                            cancelBtn.disabled = false;
+                            cancelBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        }
+                        if (progressContainer) progressContainer.classList.add('hidden');
+                        if (progressBar) progressBar.style.width = '0%';
+                        if (percentText) percentText.textContent = '0%';
+                    }
+                }
+            });
+        });
+    });
 </script>
 @endsection

@@ -25,6 +25,16 @@ interface StorageProvider
     public function generateSignedUrl(string $filePath, int $expiryMinutes = 15): string;
 
     /**
+     * Generate a signed upload configuration for uploading directly from the client browser.
+     *
+     * @param string $path Target destination path or filename prefix
+     * @param string $contentType MIME type of the file to be uploaded
+     * @param int $expiryMinutes Expiry time for the signed upload in minutes
+     * @return array Contains 'upload_url', 'file_path', 'method', and 'headers' (as an associative array)
+     */
+    public function generateSignedUploadUrl(string $path, string $contentType, int $expiryMinutes = 15): array;
+
+    /**
      * Delete a file or asset from the provider.
      *
      * @param string $filePath File path or provider identifier

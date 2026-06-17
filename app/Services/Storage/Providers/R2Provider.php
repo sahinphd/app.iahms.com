@@ -57,6 +57,28 @@ class R2Provider implements StorageProvider
     }
 
     /**
+     * Generate a signed upload configuration for R2 storage upload.
+     */
+    public function generateSignedUploadUrl(string $path, string $contentType, int $expiryMinutes = 15): array
+    {
+        $disk = $this->getDisk();
+        $filename = time() . '_' . basename($path);
+        $fullPath = rtrim(dirname($path), '/') . '/' . $filename;
+
+        // AWS/S3 compatible temporary upload URL
+        $url = $disk->temporaryUploadUrl($fullPath, now()->addMinutes($expiryMinutes));
+
+        return [
+            'upload_url' => $url,
+            'file_path' => $fullPath,
+            'method' => 'PUT',
+            'headers' => [
+                'Content-Type' => $contentType,
+            ]
+        ];
+    }
+
+    /**
      * Delete an object from R2.
      */
     public function delete(string $filePath): bool
