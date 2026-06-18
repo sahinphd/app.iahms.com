@@ -25,6 +25,7 @@ class User extends Authenticatable
         'role', // admin, teacher, student
         'is_approved',
         'is_suspended',
+        'school_class_id',
     ];
 
     /**
@@ -49,6 +50,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_approved' => 'boolean',
             'is_suspended' => 'boolean',
+            'school_class_id' => 'integer',
         ];
     }
 

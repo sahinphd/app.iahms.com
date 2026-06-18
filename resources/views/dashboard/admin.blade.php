@@ -71,8 +71,56 @@
     <!-- Main Admin Controls Panel -->
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
         
-        <!-- User Management Table -->
-        <div class="xl:col-span-2 bg-slate-950/40 border border-slate-800 rounded-3xl p-6 shadow-lg">
+        <!-- User Management Column -->
+        <div class="xl:col-span-2 space-y-6">
+            
+            <!-- Pending Enrollments List -->
+            @if(count($pendingEnrollments) > 0)
+                <div class="bg-slate-950/40 border border-amber-500/25 rounded-3xl p-6 shadow-lg space-y-4">
+                    <div class="flex items-center space-x-2.5">
+                        <span class="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/10">
+                            <svg class="w-4 h-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-100 font-Outfit">Pending Course Enrollment Requests</h3>
+                            <p class="text-[10px] text-slate-400">Students waiting for access to courses</p>
+                        </div>
+                    </div>
+                    
+                    <div class="divide-y divide-slate-850">
+                        @foreach($pendingEnrollments as $pending)
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between py-3.5 first:pt-0 last:pb-0 gap-2">
+                                <div class="min-w-0">
+                                    <p class="text-xs font-bold text-slate-200">{{ $pending->student->name }}</p>
+                                    <p class="text-[10px] text-slate-500 truncate">{{ $pending->student->email }}</p>
+                                    <p class="text-[9px] text-brand-400 mt-0.5">Course: {{ $pending->course->title }}</p>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <form action="{{ route('enrollments.approve', $pending->id) }}" method="POST" class="inline">
+                                        @csrf
+                                        <button type="submit" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-bold transition-colors">
+                                            Approve
+                                        </button>
+                                    </form>
+                                    <form action="{{ route('enrollments.unenroll', $pending->course_id) }}" method="POST" onsubmit="return confirm('Reject this enrollment request?')" class="inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <input type="hidden" name="student_id" value="{{ $pending->student_id }}">
+                                        <button type="submit" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[10px] font-bold transition-colors">
+                                            Reject
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            <!-- User Management Table -->
+            <div class="bg-slate-950/40 border border-slate-800 rounded-3xl p-6 shadow-lg">
             <div class="flex items-center justify-between mb-6">
                 <div>
                     <h3 class="text-lg font-bold text-slate-100">User Role Management</h3>

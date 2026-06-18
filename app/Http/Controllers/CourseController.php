@@ -38,7 +38,8 @@ class CourseController extends Controller
             $courses = Course::where('is_published', true)
                 ->where(function ($query) use ($user) {
                     $query->whereNull('school_class_id')
-                          ->orWhere('school_class_id', $user->school_class_id);
+                          ->orWhere('school_class_id', $user->school_class_id)
+                          ->orWhereIn('id', $user->enrollments()->pluck('course_id')->toArray());
                 })
                 ->with(['teachers', 'schoolClass'])
                 ->get();
@@ -134,7 +135,7 @@ class CourseController extends Controller
         $isEnrolled = false;
         $isPending = false;
         if ($user->isStudent()) {
-            if ($course->school_class_id && $course->school_class_id === $user->school_class_id) {
+            if ($course->school_class_id && $course->school_class_id == $user->school_class_id) {
                 $isEnrolled = true;
             } else {
                 $enrollment = \App\Models\Enrollment::where('student_id', $user->id)
@@ -146,7 +147,6 @@ class CourseController extends Controller
                 }
             }
         }
-
         // For teachers/admins, fetch pending enrollment requests for this course
         $pendingEnrollments = [];
         if ($user->isAssignedToCourse($course, 'course_admin')) {

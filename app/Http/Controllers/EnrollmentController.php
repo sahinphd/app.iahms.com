@@ -65,6 +65,11 @@ class EnrollmentController extends Controller
             'is_approved' => true,
         ]);
 
+        // Automatically approve the student user account as well!
+        $enrollment->student->update([
+            'is_approved' => true
+        ]);
+
         return redirect()->back()->with('success', 'Student enrollment approved successfully!');
     }
 

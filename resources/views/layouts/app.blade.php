@@ -4,9 +4,16 @@
     $primaryColor = \App\Models\Setting::get('theme_primary_color', '#8b5cf6');
     $bgColor = \App\Models\Setting::get('theme_bg_color', '#0f172a');
     $sidebarColor = \App\Models\Setting::get('theme_sidebar_color', '#020617');
+    $googleAnalyticsId = \App\Models\Setting::get('google_analytics_id', '');
 
     $primary600 = \App\Models\Setting::darkenColor($primaryColor, 10);
     $primary700 = \App\Models\Setting::darkenColor($primaryColor, 20);
+
+    $onlineUsersCount = \DB::table('sessions')
+        ->where('last_activity', '>=', now()->subMinutes(5)->getTimestamp())
+        ->whereNotNull('user_id')
+        ->distinct('user_id')
+        ->count('user_id');
 @endphp
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-slate-900">
@@ -14,6 +21,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $logoText }} - Secure Learning Portal</title>
+    @if(!empty($googleAnalyticsId))
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id={{ $googleAnalyticsId }}"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '{{ $googleAnalyticsId }}');
+        </script>
+    @endif
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -114,20 +131,28 @@
 
         @auth
         <!-- Authenticated User Profile Summary -->
-        <div class="px-6 py-4 border-b border-slate-800 bg-slate-900/30 flex items-center space-x-3">
-            <div class="h-10 w-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-semibold text-brand-400">
-                {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
-            </div>
-            <div class="flex flex-col min-w-0">
-                <p class="text-sm font-semibold text-slate-200 truncate">{{ Auth::user()->name }}</p>
-                <div class="flex items-center space-x-1.5 mt-0.5">
-                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider 
-                        @if(Auth::user()->isAdmin()) bg-rose-500/20 text-rose-400 border border-rose-500/30
-                        @elseif(Auth::user()->isTeacher()) bg-amber-500/20 text-amber-400 border border-amber-500/30
-                        @else bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 @endif">
-                        {{ Auth::user()->role }}
-                    </span>
+        <div class="px-6 py-4 border-b border-slate-800 bg-slate-900/30 flex flex-col space-y-2">
+            <div class="flex items-center space-x-3">
+                <div class="h-10 w-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-semibold text-brand-400">
+                    {{ strtoupper(substr(Auth::user()->name, 0, 2)) }}
                 </div>
+                <div class="flex flex-col min-w-0">
+                    <p class="text-sm font-semibold text-slate-200 truncate">{{ Auth::user()->name }}</p>
+                    <div class="flex items-center space-x-1.5 mt-0.5">
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider 
+                            @if(Auth::user()->isAdmin()) bg-rose-500/20 text-rose-400 border border-rose-500/30
+                            @elseif(Auth::user()->isTeacher()) bg-amber-500/20 text-amber-400 border border-amber-500/30
+                            @else bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 @endif">
+                            {{ Auth::user()->role }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Online status indicator -->
+            <div class="flex items-center space-x-2 text-[10px] text-slate-500 pt-2 border-t border-slate-800/50">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span><strong class="text-slate-350">{{ $onlineUsersCount }}</strong> currently online</span>
             </div>
         </div>
         @endauth
@@ -213,6 +238,12 @@
                     </svg>
                     <span>Register</span>
                 </a>
+                <a href="{{ route('register.payment') }}" class="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group {{ request()->routeIs('register.payment') ? 'bg-gradient-to-r from-brand-600/30 to-brand-700/10 text-brand-400 border-l-4 border-brand-500 pl-3' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100' }}">
+                    <svg class="h-5 w-5 {{ request()->routeIs('register.payment') ? 'text-brand-400' : 'text-slate-400 group-hover:text-slate-200' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6m-5 0a3 3 0 110 6 3 3 0 010-6zm-5 6h10a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2z" />
+                    </svg>
+                    <span>Payment Option</span>
+                </a>
             @endauth
         </nav>
 
@@ -243,8 +274,17 @@
             <div>
                 <h1 class="text-lg font-semibold text-slate-200">@yield('page_title', 'Learning Portal')</h1>
             </div>
-            <div class="flex items-center space-x-4">
-                <span class="text-xs text-slate-400">Current Local Time: 2026-06-09</span>
+            <div class="flex items-center space-x-6">
+                <div class="flex items-center space-x-2 text-xs">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-slate-400 font-semibold"><span class="text-slate-200">{{ $onlineUsersCount }}</span> Online</span>
+                </div>
+                <div class="text-xs text-slate-400 flex items-center space-x-1">
+                    <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span id="live-clock">Loading server time...</span>
+                </div>
             </div>
         </header>
 
@@ -310,6 +350,34 @@
         if (menuToggle) menuToggle.addEventListener('click', toggleSidebar);
         if (menuClose) menuClose.addEventListener('click', toggleSidebar);
         if (overlay) overlay.addEventListener('click', toggleSidebar);
+    </script>
+    
+    <!-- Live Clock Script -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const clockEl = document.getElementById('live-clock');
+            if (clockEl) {
+                let serverTime = new Date("{{ now()->toIso8601String() }}");
+                
+                function updateClock() {
+                    serverTime.setSeconds(serverTime.getSeconds() + 1);
+                    
+                    const options = { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric', 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        second: '2-digit',
+                        hour12: true
+                    };
+                    clockEl.textContent = serverTime.toLocaleDateString('en-US', options);
+                }
+                
+                updateClock();
+                setInterval(updateClock, 1000);
+            }
+        });
     </script>
 </body>
 </html>

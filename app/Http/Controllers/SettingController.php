@@ -18,7 +18,16 @@ class SettingController extends Controller
         $bgColor = Setting::get('theme_bg_color', '#0f172a');
         $sidebarColor = Setting::get('theme_sidebar_color', '#020617');
 
-        return view('admin.theme', compact('logoText', 'logoSubtext', 'primaryColor', 'bgColor', 'sidebarColor'));
+        $paymentQrCode = Setting::get('payment_qr_code');
+        $paymentUpiId = Setting::get('payment_upi_id', 'pay@upi');
+        $paymentUpiName = Setting::get('payment_upi_name', 'IAHMS LMS');
+        $paymentInstructions = Setting::get('payment_instructions', 'Scan the QR code to complete the payment.');
+        $googleAnalyticsId = Setting::get('google_analytics_id', '');
+
+        return view('admin.theme', compact(
+            'logoText', 'logoSubtext', 'primaryColor', 'bgColor', 'sidebarColor',
+            'paymentQrCode', 'paymentUpiId', 'paymentUpiName', 'paymentInstructions', 'googleAnalyticsId'
+        ));
     }
 
     /**
@@ -32,6 +41,13 @@ class SettingController extends Controller
             'theme_primary_color' => ['required', 'string', 'regex:/^#[a-fA-F0-9]{6}$/'],
             'theme_bg_color' => ['required', 'string', 'regex:/^#[a-fA-F0-9]{6}$/'],
             'theme_sidebar_color' => ['required', 'string', 'regex:/^#[a-fA-F0-9]{6}$/'],
+            
+            // Payment settings validation
+            'payment_qr_code' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'payment_upi_id' => 'nullable|string|max:100',
+            'payment_upi_name' => 'nullable|string|max:100',
+            'payment_instructions' => 'nullable|string',
+            'google_analytics_id' => 'nullable|string|max:50',
         ]);
 
         Setting::set('site_logo_text', $request->site_logo_text);
@@ -40,7 +56,28 @@ class SettingController extends Controller
         Setting::set('theme_bg_color', $request->theme_bg_color);
         Setting::set('theme_sidebar_color', $request->theme_sidebar_color);
 
-        return redirect()->back()->with('success', 'Theme and branding settings updated successfully!');
+        if ($request->hasFile('payment_qr_code')) {
+            $file = $request->file('payment_qr_code');
+            $fileName = 'upi_qr_' . time() . '.' . $file->getClientOriginalExtension();
+            // Create uploads directory if not exists
+            if (!file_exists(public_path('uploads'))) {
+                mkdir(public_path('uploads'), 0777, true);
+            }
+            $file->move(public_path('uploads'), $fileName);
+            // Delete old QR code if exists
+            $oldQr = Setting::get('payment_qr_code');
+            if ($oldQr && file_exists(public_path($oldQr))) {
+                @unlink(public_path($oldQr));
+            }
+            Setting::set('payment_qr_code', 'uploads/' . $fileName);
+        }
+
+        Setting::set('payment_upi_id', $request->payment_upi_id ?? '');
+        Setting::set('payment_upi_name', $request->payment_upi_name ?? '');
+        Setting::set('payment_instructions', $request->payment_instructions ?? '');
+        Setting::set('google_analytics_id', $request->google_analytics_id ?? '');
+
+        return redirect()->back()->with('success', 'Theme and payment settings updated successfully!');
     }
 
     /**

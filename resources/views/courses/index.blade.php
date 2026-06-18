@@ -61,7 +61,7 @@
 
                     <!-- Student Enrollment Buttons -->
                     @if(Auth::user()->isStudent())
-                        @if($course->school_class_id && $course->school_class_id === Auth::user()->school_class_id)
+                        @if($course->school_class_id && $course->school_class_id == Auth::user()->school_class_id)
                             <span class="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold select-none flex items-center space-x-1">
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />

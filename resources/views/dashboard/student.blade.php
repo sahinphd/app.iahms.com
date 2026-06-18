@@ -105,7 +105,7 @@
                         @endif
                     </div>
                     <div class="mt-4 flex items-center justify-between">
-                        @if($course->school_class_id && $course->school_class_id === Auth::user()->school_class_id)
+                        @if($course->school_class_id && $course->school_class_id == Auth::user()->school_class_id)
                             <span class="text-[9px] font-extrabold text-slate-500 uppercase tracking-wider bg-slate-900/60 border border-slate-800 px-2.5 py-1.5 rounded-xl select-none">
                                 Class Course
                             </span>

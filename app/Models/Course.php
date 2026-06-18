@@ -23,6 +23,7 @@ class Course extends Model
     protected $casts = [
         'is_published' => 'boolean',
         'is_completed' => 'boolean',
+        'school_class_id' => 'integer',
     ];
 
     /**

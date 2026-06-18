@@ -64,8 +64,11 @@ class DashboardController extends Controller
             
             $courses = Course::with('teachers')->get();
             $classes = \App\Models\SchoolClass::orderBy('name')->get();
+            $pendingEnrollments = Enrollment::where('is_approved', false)
+                ->with(['student', 'course'])
+                ->get();
 
-            return view('dashboard.admin', compact('stats', 'users', 'courses', 'classes'));
+            return view('dashboard.admin', compact('stats', 'users', 'courses', 'classes', 'pendingEnrollments'));
         }
 
         if ($user->isTeacher()) {

@@ -69,7 +69,7 @@
 
     <!-- Main Customizer Form -->
     <div class="bg-slate-950/40 border border-slate-800 rounded-3xl p-6 shadow-lg">
-        <form action="{{ route('admin.theme.update') }}" method="POST" class="space-y-6">
+        <form action="{{ route('admin.theme.update') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
             @csrf
 
             <!-- Branding Section -->
@@ -148,6 +148,79 @@
                                    class="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0">
                             <span id="label_sidebar_color" class="text-xs font-mono text-slate-350">{{ $sidebarColor }}</span>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- UPI QR Payment Section -->
+            <div>
+                <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-850 pb-2">UPI QR & Payment Settings</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-1 p-4 bg-slate-900/40 border border-slate-850 rounded-2xl flex flex-col justify-between">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">UPI QR Code Image</label>
+                            <span class="text-[9px] text-slate-500 block">Upload a QR Code image (PNG/JPG) for student payment display</span>
+                        </div>
+                        <div class="mt-3 space-y-3">
+                            @if($paymentQrCode)
+                                <div class="relative w-24 h-24 rounded-lg overflow-hidden border border-slate-800 bg-white p-1">
+                                    <img src="{{ asset($paymentQrCode) }}" class="w-full h-full object-contain" alt="Current QR Code">
+                                </div>
+                            @endif
+                            <input type="file" 
+                                   name="payment_qr_code" 
+                                   id="payment_qr_code"
+                                   accept="image/*"
+                                   class="block w-full text-[10px] text-slate-400 file:mr-3 file:py-1 file:px-2.5 file:rounded-xl file:border-0 file:text-[10px] file:font-semibold file:bg-brand-500/10 file:text-brand-400 hover:file:bg-brand-500/20 cursor-pointer">
+                        </div>
+                    </div>
+                    
+                    <div class="md:col-span-2 space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Payee / Merchant Name</label>
+                                <input type="text" 
+                                       name="payment_upi_name" 
+                                       id="payment_upi_name"
+                                       value="{{ $paymentUpiName }}" 
+                                       placeholder="e.g. IAHMS LMS"
+                                       class="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-brand-500 placeholder-slate-700">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">UPI ID (VPA)</label>
+                                <input type="text" 
+                                       name="payment_upi_id" 
+                                       id="payment_upi_id"
+                                       value="{{ $paymentUpiId }}" 
+                                       placeholder="e.g. pay@upi"
+                                       class="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-brand-500 placeholder-slate-700">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Payment Instructions</label>
+                            <textarea name="payment_instructions" 
+                                      id="payment_instructions"
+                                      rows="3"
+                                      placeholder="Provide details about the admission/registration fees and approval timeline..."
+                                      class="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-brand-500 placeholder-slate-700">{{ $paymentInstructions }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Google Analytics Section -->
+            <div>
+                <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-850 pb-2">Google Analytics Integration</h4>
+                <div class="p-6 bg-slate-900/40 border border-slate-850 rounded-3xl space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Google Analytics Measurement ID (GTID)</label>
+                        <input type="text" 
+                               name="google_analytics_id" 
+                               id="google_analytics_id"
+                               value="{{ $googleAnalyticsId }}" 
+                               placeholder="e.g. G-XXXXXXXXXX"
+                               class="max-w-md w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-brand-500 placeholder-slate-700">
+                        <span class="text-[10px] text-slate-500 block mt-1.5">Enter your Google Analytics Measurement ID (starting with "G-"). When filled, the tracking script tag is automatically injected globally in all layouts.</span>
                     </div>
                 </div>
             </div>

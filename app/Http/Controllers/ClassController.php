@@ -65,11 +65,15 @@ class ClassController extends Controller
         ]);
 
         $student = User::where('role', 'student')->findOrFail($request->student_id);
-        $student->update([
+        $updateData = [
             'school_class_id' => $request->school_class_id,
-        ]);
+        ];
+        if ($request->school_class_id) {
+            $updateData['is_approved'] = true;
+        }
+        $student->update($updateData);
 
-        $status = $request->school_class_id ? 'assigned to class' : 'unassigned from class';
+        $status = $request->school_class_id ? 'assigned to class and approved' : 'unassigned from class';
         return redirect()->back()->with('success', "Student '{$student->name}' was successfully {$status}.");
     }
 
@@ -147,7 +151,10 @@ class ClassController extends Controller
         if (count($studentIds) > 0) {
             User::whereIn('id', $studentIds)
                 ->where('role', 'student')
-                ->update(['school_class_id' => $classId]);
+                ->update([
+                    'school_class_id' => $classId,
+                    'is_approved' => true
+                ]);
         }
 
         return redirect()->back()->with('success', 'Student class allotments updated successfully!');
@@ -183,7 +190,7 @@ class ClassController extends Controller
     public function show(SchoolClass $schoolClass)
     {
         $user = Auth::user();
-        if (!$user->isAdmin() && !$user->isAssignedToClass($schoolClass) && $user->school_class_id !== $schoolClass->id) {
+        if (!$user->isAdmin() && !$user->isAssignedToClass($schoolClass) && $user->school_class_id != $schoolClass->id) {
             abort(403, 'Unauthorized to view this class.');
         }
 

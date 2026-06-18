@@ -99,7 +99,7 @@ class LiveClassController extends Controller
         // Check access
         if (!$user->isAssignedToSubject($subject)) {
             $isEnrolled = false;
-            if ($course->school_class_id && $course->school_class_id === $user->school_class_id) {
+            if ($course->school_class_id && $course->school_class_id == $user->school_class_id) {
                 $isEnrolled = true;
             } else {
                 $isEnrolled = $user->enrolledCourses()

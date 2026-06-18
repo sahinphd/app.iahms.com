@@ -37,7 +37,20 @@ class AuthController extends Controller
             'is_approved' => false, // Student registrations must be approved by admin
         ]);
 
-        return redirect()->route('login')->with('success', 'Registration successful! Your account is pending administrator approval before you can log in.');
+        return redirect()->route('register.payment')->with('success', 'Registration successful! Your account is pending administrator approval. Please complete the registration payment below to proceed.');
+    }
+
+    /**
+     * Show registration payment instructions form.
+     */
+    public function showPayment()
+    {
+        $paymentQrCode = \App\Models\Setting::get('payment_qr_code');
+        $paymentUpiId = \App\Models\Setting::get('payment_upi_id', 'pay@upi');
+        $paymentUpiName = \App\Models\Setting::get('payment_upi_name', 'IAHMS LMS');
+        $paymentInstructions = \App\Models\Setting::get('payment_instructions', 'Scan the QR code to complete the payment.');
+
+        return view('auth.payment', compact('paymentQrCode', 'paymentUpiId', 'paymentUpiName', 'paymentInstructions'));
     }
 
     /**
