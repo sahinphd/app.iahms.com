@@ -383,7 +383,41 @@ class DashboardController extends Controller
             'is_approved' => !$user->is_approved
         ]);
 
-        $status = $user->is_approved ? 'approved' : 'suspended';
+        $status = $user->is_approved ? 'approved' : 'unapproved';
+        return redirect()->back()->with('success', "User account has been {$status} successfully.");
+    }
+
+    /**
+     * Toggle the suspension status of a user.
+     */
+    public function toggleSuspend(User $user)
+    {
+        $caller = Auth::user();
+
+        if ($user->id === $caller->id) {
+            return redirect()->back()->with('error', 'You cannot change your own suspension status.');
+        }
+
+        if ($user->isStudent()) {
+            if (!$caller->isAdmin() && !$caller->hasPermission('manage_student_profiles')) {
+                abort(403, 'Unauthorized.');
+            }
+        } elseif ($user->isTeacher()) {
+            if (!$caller->isAdmin() && !$caller->hasPermission('manage_teacher_profiles')) {
+                abort(403, 'Unauthorized.');
+            }
+        } else {
+            // target is admin
+            if (!$caller->isAdmin()) {
+                abort(403, 'Unauthorized.');
+            }
+        }
+
+        $user->update([
+            'is_suspended' => !$user->is_suspended
+        ]);
+
+        $status = $user->is_suspended ? 'suspended' : 'activated';
         return redirect()->back()->with('success', "User account has been {$status} successfully.");
     }
 

@@ -61,6 +61,13 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $user = Auth::user();
 
+            if ($user->is_suspended) {
+                Auth::logout();
+                return back()->withErrors([
+                    'email' => 'Your account is suspended.',
+                ])->onlyInput('email');
+            }
+
             if (!$user->is_approved) {
                 Auth::logout();
                 return back()->withErrors([

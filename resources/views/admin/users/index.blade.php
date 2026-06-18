@@ -120,11 +120,19 @@
                                 </span>
                             </td>
                             <td class="px-4 py-4">
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
-                                    @if($user->is_approved) bg-emerald-500/15 text-emerald-400 border border-emerald-500/30
-                                    @else bg-amber-500/15 text-amber-400 border border-amber-500/30 animate-pulse @endif">
-                                    {{ $user->is_approved ? 'Approved' : 'Pending' }}
-                                </span>
+                                @if($user->is_suspended)
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                                        Suspended
+                                    </span>
+                                @elseif($user->is_approved)
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                        Approved
+                                    </span>
+                                @else
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/30 animate-pulse">
+                                        Pending
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-4 py-4 text-xs font-semibold text-slate-400">
                                 {{ $user->schoolClass ? $user->schoolClass->name : 'No Class' }}
@@ -153,14 +161,23 @@
                             @endif
                             <td class="px-4 py-4 text-right">
                                 @if($user->id !== Auth::id())
-                                    <form action="{{ route('admin.users.toggle-approval', $user->id) }}" method="POST" class="inline">
-                                        @csrf
-                                        <button type="submit" class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all duration-200 border 
-                                            @if($user->is_approved) bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-400 border-rose-500/20
-                                            @else bg-emerald-500/10 hover:bg-emerald-500 hover:text-white text-emerald-400 border-emerald-500/20 @endif">
-                                                {{ $user->is_approved ? 'Suspend' : 'Approve' }}
-                                        </button>
-                                    </form>
+                                    @if(!$user->is_approved)
+                                        <form action="{{ route('admin.users.toggle-approval', $user->id) }}" method="POST" class="inline">
+                                            @csrf
+                                            <button type="submit" class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all duration-200 border bg-emerald-500/10 hover:bg-emerald-500 hover:text-white text-emerald-400 border-emerald-500/20">
+                                                Approve
+                                            </button>
+                                        </form>
+                                    @else
+                                        <form action="{{ route('admin.users.toggle-suspend', $user->id) }}" method="POST" class="inline">
+                                            @csrf
+                                            <button type="submit" class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all duration-200 border 
+                                                @if($user->is_suspended) bg-emerald-500/10 hover:bg-emerald-500 hover:text-white text-emerald-400 border-emerald-500/20
+                                                @else bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-400 border-rose-500/20 @endif">
+                                                    {{ $user->is_suspended ? 'Unsuspend' : 'Suspend' }}
+                                            </button>
+                                        </form>
+                                    @endif
                                 @else
                                     <span class="text-xs text-slate-650 font-semibold select-none">Active</span>
                                 @endif

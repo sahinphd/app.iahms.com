@@ -24,6 +24,7 @@ class User extends Authenticatable
         'password',
         'role', // admin, teacher, student
         'is_approved',
+        'is_suspended',
     ];
 
     /**
@@ -47,6 +48,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_approved' => 'boolean',
+            'is_suspended' => 'boolean',
         ];
     }
 

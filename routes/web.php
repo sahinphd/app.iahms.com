@@ -123,6 +123,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/users', [DashboardController::class, 'createUser'])->name('admin.users.create');
     Route::put('/admin/users/{user}/role', [DashboardController::class, 'updateUserRole'])->name('admin.users.update-role');
     Route::post('/admin/users/{user}/toggle-approval', [DashboardController::class, 'toggleApproval'])->name('admin.users.toggle-approval');
+    Route::post('/admin/users/{user}/toggle-suspend', [DashboardController::class, 'toggleSuspend'])->name('admin.users.toggle-suspend');
     Route::post('/admin/users/bulk', [DashboardController::class, 'bulkCreateUsers'])->name('admin.users.bulk');
     Route::get('/admin/users/{user}/profile', [DashboardController::class, 'userProfile'])->name('admin.users.profile');
 
