@@ -292,6 +292,7 @@
                 </div>
             </div>
         </div>
+        </div>
 
         <!-- Sidebar Panel Column -->
         <div class="flex flex-col">
