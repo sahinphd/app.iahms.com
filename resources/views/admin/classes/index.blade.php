@@ -90,7 +90,7 @@
                                                     <input type="checkbox" name="teachers[]" value="{{ $t->id }}" {{ $assigned ? 'checked' : '' }} class="rounded border-slate-800 bg-slate-950 text-brand-600 focus:ring-brand-500 w-3 h-3">
                                                     <span class="truncate max-w-[100px]">{{ $t->name }}</span>
                                                 </label>
-                                                <select name="roles[{{ $t->id }}]" class="bg-slate-950 border border-slate-850 text-[9px] rounded px-1 py-0.5 text-slate-350 focus:outline-none focus:border-brand-500">
+                                                <select name="roles[{{ $t->id }}]" class="bg-slate-900 border border-slate-800 text-[9px] rounded px-1 py-0.5 text-slate-300 focus:outline-none focus:border-brand-500">
                                                     <option value="teacher" {{ $assigned && $assigned->pivot->role === 'teacher' ? 'selected' : '' }}>Teacher</option>
                                                     <option value="class_admin" {{ $assigned && $assigned->pivot->role === 'class_admin' ? 'selected' : '' }}>Class Admin</option>
                                                 </select>
@@ -162,7 +162,7 @@
                     @csrf
                     <div>
                         <label class="block text-[10px] font-semibold text-slate-455 uppercase tracking-wider mb-1">Select Target Class</label>
-                        <select id="allot-class-select" name="school_class_id" required onchange="updateStudentSelection(this.value)" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-850 text-xs text-slate-200 focus:outline-none focus:border-brand-500 cursor-pointer">
+                        <select id="allot-class-select" name="school_class_id" required onchange="updateStudentSelection(this.value)" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-brand-500 cursor-pointer">
                             <option value="" disabled selected>-- Choose Class --</option>
                             @foreach($classes as $c)
                                 <option value="{{ $c->id }}">{{ $c->name }}</option>
@@ -207,7 +207,7 @@
                     @csrf
                     <div>
                         <label class="block text-[10px] font-semibold text-slate-455 uppercase tracking-wider mb-1">Select Target Class</label>
-                        <select id="allot-teacher-class-select" name="school_class_id" required onchange="updateTeacherSelection(this.value)" class="w-full px-3 py-2 rounded-xl bg-slate-955 border border-slate-850 text-xs text-slate-200 focus:outline-none focus:border-brand-500 cursor-pointer">
+                        <select id="allot-teacher-class-select" name="school_class_id" required onchange="updateTeacherSelection(this.value)" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-brand-500 cursor-pointer">
                             <option value="" disabled selected>-- Choose Class --</option>
                             @foreach($classes as $c)
                                 <option value="{{ $c->id }}">{{ $c->name }}</option>
@@ -237,7 +237,7 @@
                                         </div>
                                     </label>
                                     <div class="flex items-center space-x-2">
-                                        <select id="role-select-{{ $teacher->id }}" name="roles[{{ $teacher->id }}]" class="bg-slate-950 border border-slate-850 text-[10px] rounded px-2 py-1 text-slate-350 focus:outline-none focus:border-brand-500 cursor-pointer">
+                                        <select id="role-select-{{ $teacher->id }}" name="roles[{{ $teacher->id }}]" class="bg-slate-900 border border-slate-800 text-[10px] rounded-xl px-2 py-1 text-slate-300 focus:outline-none focus:border-brand-500 cursor-pointer">
                                             <option value="teacher">Teacher</option>
                                             <option value="class_admin">Class Admin</option>
                                         </select>

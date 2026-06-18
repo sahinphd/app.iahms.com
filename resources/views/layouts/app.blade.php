@@ -11,9 +11,7 @@
 
     $onlineUsersCount = \DB::table('sessions')
         ->where('last_activity', '>=', now()->subMinutes(5)->getTimestamp())
-        ->whereNotNull('user_id')
-        ->distinct('user_id')
-        ->count('user_id');
+        ->count();
 @endphp
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-slate-900">
@@ -151,6 +149,14 @@
             
             <!-- Online status indicator -->
             <div class="flex items-center space-x-2 text-[10px] text-slate-500 pt-2 border-t border-slate-800/50">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span><strong class="text-slate-350">{{ $onlineUsersCount }}</strong> currently online</span>
+            </div>
+        </div>
+        @else
+        <!-- Guest Profile Summary / Status Indicator -->
+        <div class="px-6 py-4 border-b border-slate-800 bg-slate-900/30 flex flex-col space-y-2">
+            <div class="flex items-center space-x-2 text-[10px] text-slate-500">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span><strong class="text-slate-350">{{ $onlineUsersCount }}</strong> currently online</span>
             </div>

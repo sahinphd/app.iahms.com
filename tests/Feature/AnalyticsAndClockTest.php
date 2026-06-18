@@ -61,10 +61,11 @@ class AnalyticsAndClockTest extends TestCase
      */
     public function test_online_users_count_displays_active_sessions()
     {
-        // Log in a user to trigger rendering layout app.blade.php
-        $student = User::where('role', 'student')->first();
+        // Clear sessions table
+        \DB::table('sessions')->truncate();
 
-        // Seed a dummy active session in the database
+        // Seed a student active session in the database
+        $student = User::where('role', 'student')->first();
         \DB::table('sessions')->insert([
             'id' => 'dummy_session_123',
             'user_id' => $student->id,
@@ -74,12 +75,30 @@ class AnalyticsAndClockTest extends TestCase
             'last_activity' => now()->subMinutes(1)->getTimestamp()
         ]);
 
+        // Seed a guest session in the database
+        \DB::table('sessions')->insert([
+            'id' => 'guest_session_456',
+            'user_id' => null,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'PHPUnit',
+            'payload' => 'payload_data',
+            'last_activity' => now()->subMinutes(2)->getTimestamp()
+        ]);
+
+        // Check logged-in view
         $response = $this->actingAs($student)->get(route('dashboard'));
         $response->assertStatus(200);
         
-        // Assert we see the clock and online indicator
-        $response->assertSee('Online');
-        $response->assertSee('currently online');
+        // Assert we see the clock and online indicators with correct count
+        $response->assertSee('<span class="text-slate-200">2</span> Online', false);
+        $response->assertSee('<strong class="text-slate-350">2</strong> currently online', false);
         $response->assertSee('live-clock');
+
+        // Check guest view
+        auth()->logout();
+        $guestResponse = $this->get(route('login'));
+        $guestResponse->assertStatus(200);
+        $guestResponse->assertSee('<span class="text-slate-200">2</span> Online', false);
+        $guestResponse->assertSee('<strong class="text-slate-350">2</strong> currently online', false);
     }
 }
