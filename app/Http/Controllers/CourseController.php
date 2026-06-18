@@ -344,7 +344,8 @@ class CourseController extends Controller
      */
     public function assignTeachers(Request $request, Course $course)
     {
-        if (!Auth::user()->isAdmin()) {
+        $user = Auth::user();
+        if (!$user->isAdmin() && !$user->isAssignedToCourse($course, 'course_admin')) {
             abort(403, 'Unauthorized.');
         }
 

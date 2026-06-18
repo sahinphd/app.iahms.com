@@ -126,6 +126,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/users/bulk', [DashboardController::class, 'bulkCreateUsers'])->name('admin.users.bulk');
     Route::get('/admin/users/{user}/profile', [DashboardController::class, 'userProfile'])->name('admin.users.profile');
 
+    // Dynamic Teacher assignments (authorized inside controllers)
+    Route::post('/admin/courses/{course}/assign-teachers', [CourseController::class, 'assignTeachers'])->name('admin.courses.assign-teachers');
+    Route::post('/admin/classes/{schoolClass}/assign-teachers', [ClassController::class, 'assignTeachers'])->name('admin.classes.assign-teachers');
+    Route::get('/classes/{schoolClass}', [ClassController::class, 'show'])->name('classes.show');
+
     // Admin only routes
     Route::middleware('role:admin')->group(function () {
         // Theme settings
@@ -135,10 +140,6 @@ Route::middleware('auth')->group(function () {
         // Storage settings
         Route::get('/admin/settings/storage', [SettingController::class, 'showStorageSettings'])->name('admin.settings.storage');
         Route::post('/admin/settings/storage', [SettingController::class, 'updateStorageSettings'])->name('admin.settings.storage.update');
-
-        // Teacher assignments
-        Route::post('/admin/courses/{course}/assign-teachers', [CourseController::class, 'assignTeachers'])->name('admin.courses.assign-teachers');
-        Route::post('/admin/classes/{schoolClass}/assign-teachers', [ClassController::class, 'assignTeachers'])->name('admin.classes.assign-teachers');
     });
 
     // Admin features protected by dynamic permissions

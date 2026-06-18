@@ -162,6 +162,44 @@
                     @endforelse
                 </div>
             </div>
+
+            <!-- My Assigned Classes -->
+            <div class="bg-slate-950/40 border border-slate-800 rounded-3xl p-6 shadow-lg">
+                <div class="mb-6">
+                    <h3 class="text-lg font-bold text-slate-100">My Assigned Classes</h3>
+                    <p class="text-xs text-slate-400 mt-1">View rosters and manage class-level details</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    @forelse($myClasses as $class)
+                    <div class="p-5 bg-slate-900/50 border border-slate-800/80 rounded-2xl flex flex-col justify-between hover:border-slate-750 transition-colors gap-3">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-sm font-bold text-slate-200 flex items-center space-x-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-brand-500"></span>
+                                    <span>{{ $class->name }}</span>
+                                </h4>
+                                <span class="px-2 py-0.5 rounded text-[8px] font-extrabold uppercase {{ $class->pivot->role === 'class_admin' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-slate-800 text-slate-400' }}">
+                                    {{ $class->pivot->role === 'class_admin' ? 'Class Admin' : 'Teacher' }}
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-2 line-clamp-2">{{ $class->description ?: 'No description provided.' }}</p>
+                        </div>
+
+                        <div class="flex items-center justify-between mt-2 pt-3 border-t border-slate-850/80">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{{ $class->students()->count() }} Enrolled Students</span>
+                            <a href="{{ route('classes.show', $class->id) }}" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-[10px] font-bold text-slate-200 transition-colors">
+                                View Class Details
+                            </a>
+                        </div>
+                    </div>
+                    @empty
+                    <div class="col-span-full text-center py-10 text-slate-500 border border-dashed border-slate-855 rounded-2xl bg-slate-900/10">
+                        <p class="text-sm font-medium">No school classes assigned to you.</p>
+                    </div>
+                    @endforelse
+                </div>
+            </div>
         </div>
 
         <!-- Right Side Panel: noticeboard & live classes -->

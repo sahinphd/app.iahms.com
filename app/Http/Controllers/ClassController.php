@@ -152,12 +152,10 @@ class ClassController extends Controller
 
         return redirect()->back()->with('success', 'Student class allotments updated successfully!');
     }
-    /**
-     * Assign teachers to a School Class (Admin Only).
-     */
     public function assignTeachers(Request $request, SchoolClass $schoolClass)
     {
-        if (!Auth::user()->isAdmin()) {
+        $user = Auth::user();
+        if (!$user->isAdmin() && !$user->isAssignedToClass($schoolClass, 'class_admin')) {
             abort(403, 'Unauthorized.');
         }
 
@@ -177,5 +175,26 @@ class ClassController extends Controller
         $schoolClass->teachers()->sync($syncData);
 
         return redirect()->back()->with('success', 'Class teachers updated successfully.');
+    }
+
+    /**
+     * Display the specified school class with its students and teachers.
+     */
+    public function show(SchoolClass $schoolClass)
+    {
+        $user = Auth::user();
+        if (!$user->isAdmin() && !$user->isAssignedToClass($schoolClass)) {
+            abort(403, 'Unauthorized to view this class.');
+        }
+
+        $schoolClass->load(['students', 'teachers', 'courses']);
+        $canManageClass = $user->isAdmin() || $user->isAssignedToClass($schoolClass, 'class_admin');
+
+        $allTeachers = [];
+        if ($canManageClass) {
+            $allTeachers = User::where('role', 'teacher')->orderBy('name')->get();
+        }
+
+        return view('classes.show', compact('schoolClass', 'allTeachers', 'canManageClass'));
     }
 }

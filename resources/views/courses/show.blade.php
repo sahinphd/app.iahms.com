@@ -701,8 +701,8 @@
                     @endforelse
                 </div>
 
-                @if(Auth::user()->isAdmin())
-                    <!-- Admin Teacher Assignment Form -->
+                @if(Auth::user()->isAdmin() || Auth::user()->isAssignedToCourse($course, 'course_admin'))
+                    <!-- Teacher/Admin Course Teacher Assignment Form -->
                     <div class="pt-4 border-t border-slate-850/60 space-y-3">
                         <h4 class="text-xs font-bold text-slate-350">Sync Course Teachers</h4>
                         <form action="{{ route('admin.courses.assign-teachers', $course->id) }}" method="POST" class="space-y-3">

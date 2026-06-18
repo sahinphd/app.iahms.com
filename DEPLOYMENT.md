@@ -330,3 +330,41 @@ sudo supervisorctl reread
 sudo supervisorctl update
 sudo supervisorctl start lms-worker:*
 ```
+---
+
+## Step 13: Google Cloud Storage CORS Configuration
+
+Since video files are uploaded directly from the student/teacher browser to the GCS bucket (`storage.googleapis.com`), you **must** configure a Cross-Origin Resource Sharing (CORS) policy on the bucket. Without this, the web browser will block direct uploads.
+
+Here are the two ways to set this up:
+
+### Option A: Automate using Laravel Artisan (Recommended)
+We have added a custom command to automatically apply the CORS policy. Once your storage settings (GCP Project ID, Bucket, and Service Account Key) are saved in the Admin Settings panel, SSH into your server and run:
+
+```bash
+# Set CORS policy allowing access from any origin (default)
+php artisan gcp:setup-cors
+
+# (Optional) Restrict CORS access to your specific domain for production security:
+php artisan gcp:setup-cors "https://app.iahms.com"
+```
+
+### Option B: Manual Setup via Google Cloud Console / Cloud Shell
+If you prefer configuring it manually using the Google Cloud CLI:
+
+1. Create a `cors.json` file on your computer (or in Google Cloud Shell):
+   ```json
+   [
+     {
+       "origin": ["*"],
+       "method": ["PUT", "GET", "HEAD", "OPTIONS"],
+       "responseHeader": ["Content-Type", "x-goog-resumable"],
+       "maxAgeSeconds": 3600
+     }
+   ]
+   ```
+2. Open Google Cloud Shell (or your terminal) and apply it to your bucket using `gsutil`:
+   ```bash
+   gsutil cors set cors.json gs://YOUR_GCP_BUCKET_NAME
+   ```
+   *(Replace `YOUR_GCP_BUCKET_NAME` with your actual GCS bucket name).*
