@@ -134,12 +134,16 @@ class CourseController extends Controller
         $isEnrolled = false;
         $isPending = false;
         if ($user->isStudent()) {
-            $enrollment = \App\Models\Enrollment::where('student_id', $user->id)
-                ->where('course_id', $course->id)
-                ->first();
-            if ($enrollment) {
-                $isEnrolled = $enrollment->is_approved;
-                $isPending = !$enrollment->is_approved;
+            if ($course->school_class_id && $course->school_class_id === $user->school_class_id) {
+                $isEnrolled = true;
+            } else {
+                $enrollment = \App\Models\Enrollment::where('student_id', $user->id)
+                    ->where('course_id', $course->id)
+                    ->first();
+                if ($enrollment) {
+                    $isEnrolled = $enrollment->is_approved;
+                    $isPending = !$enrollment->is_approved;
+                }
             }
         }
 

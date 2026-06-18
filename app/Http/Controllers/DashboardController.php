@@ -118,7 +118,23 @@ class DashboardController extends Controller
         }
 
         if ($user->isStudent()) {
-            $enrolledCourses = $user->enrolledCourses()->with('teachers')->get();
+            // Get courses with approved enrollments
+            $approvedCourses = $user->enrolledCourses()
+                ->wherePivot('is_approved', true)
+                ->with('teachers')
+                ->get();
+            
+            // Get courses assigned to the student's class (if any)
+            $classCourses = collect();
+            if ($user->school_class_id) {
+                $classCourses = Course::where('school_class_id', $user->school_class_id)
+                    ->where('is_published', true)
+                    ->with('teachers')
+                    ->get();
+            }
+
+            // Union of approved courses and class-assigned courses
+            $enrolledCourses = $approvedCourses->merge($classCourses)->unique('id');
             $enrolledCourseIds = $enrolledCourses->pluck('id')->toArray();
 
             // Fetch subjects in enrolled courses

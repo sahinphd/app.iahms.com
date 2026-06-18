@@ -183,7 +183,7 @@ class ClassController extends Controller
     public function show(SchoolClass $schoolClass)
     {
         $user = Auth::user();
-        if (!$user->isAdmin() && !$user->isAssignedToClass($schoolClass)) {
+        if (!$user->isAdmin() && !$user->isAssignedToClass($schoolClass) && $user->school_class_id !== $schoolClass->id) {
             abort(403, 'Unauthorized to view this class.');
         }
 

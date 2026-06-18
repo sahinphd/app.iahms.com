@@ -5,6 +5,35 @@
 @section('content')
 <div class="space-y-8">
 
+    <!-- Assigned Class Banner (If student belongs to a class) -->
+    @if(Auth::user()->schoolClass)
+        <div class="bg-gradient-to-r from-brand-950/30 via-slate-950/40 to-slate-950/20 border border-brand-500/20 p-6 rounded-3xl shadow-lg relative overflow-hidden group">
+            <div class="absolute -right-10 -top-10 w-40 h-40 bg-brand-500/5 rounded-full blur-3xl group-hover:bg-brand-500/10 transition-all duration-300"></div>
+            <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div class="flex items-center space-x-4">
+                    <div class="p-3 bg-brand-500/10 text-brand-400 rounded-2xl border border-brand-500/20">
+                        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                    </div>
+                    <div>
+                        <span class="text-[9px] font-extrabold uppercase tracking-wider bg-brand-500/15 text-brand-400 px-2 py-0.5 rounded border border-brand-500/20">Allotted Batch / Class</span>
+                        <h3 class="text-lg font-bold text-slate-100 mt-1 font-Outfit">{{ Auth::user()->schoolClass->name }}</h3>
+                        <p class="text-xs text-slate-400 mt-0.5 max-w-2xl leading-relaxed">{{ Auth::user()->schoolClass->description ?: 'No classroom description available.' }}</p>
+                    </div>
+                </div>
+                <div>
+                    <a href="{{ route('classes.show', Auth::user()->schoolClass->id) }}" class="inline-flex items-center px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl transition-all duration-200 shadow-md shadow-brand-600/10 uppercase tracking-wider">
+                        <span>View Class Details & Roster</span>
+                        <svg class="w-3.5 h-3.5 ml-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <!-- Stats Row -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         <div class="bg-slate-950/40 border border-slate-800 p-6 rounded-3xl flex items-center justify-between shadow-lg">
@@ -76,13 +105,19 @@
                         @endif
                     </div>
                     <div class="mt-4 flex items-center justify-between">
-                        <form action="{{ route('enrollments.unenroll', $course->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to unenroll from this course?')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="text-xs text-rose-400 hover:text-rose-300 font-semibold transition-colors">
-                                Unenroll
-                            </button>
-                        </form>
+                        @if($course->school_class_id && $course->school_class_id === Auth::user()->school_class_id)
+                            <span class="text-[9px] font-extrabold text-slate-500 uppercase tracking-wider bg-slate-900/60 border border-slate-800 px-2.5 py-1.5 rounded-xl select-none">
+                                Class Course
+                            </span>
+                        @else
+                            <form action="{{ route('enrollments.unenroll', $course->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to unenroll from this course?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="text-xs text-rose-400 hover:text-rose-300 font-semibold transition-colors">
+                                    Unenroll
+                                </button>
+                            </form>
+                        @endif
                         <a href="{{ route('courses.show', $course->id) }}" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition-all duration-200 shadow-md shadow-brand-600/10">
                             Open Syllabus
                         </a>

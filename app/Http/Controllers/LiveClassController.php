@@ -98,10 +98,15 @@ class LiveClassController extends Controller
 
         // Check access
         if (!$user->isAssignedToSubject($subject)) {
-            $isEnrolled = $user->enrolledCourses()
-                ->where('course_id', $course->id)
-                ->where('enrollments.is_approved', true)
-                ->exists();
+            $isEnrolled = false;
+            if ($course->school_class_id && $course->school_class_id === $user->school_class_id) {
+                $isEnrolled = true;
+            } else {
+                $isEnrolled = $user->enrolledCourses()
+                    ->where('course_id', $course->id)
+                    ->where('enrollments.is_approved', true)
+                    ->exists();
+            }
             if (!$isEnrolled) {
                 abort(403, 'You must have an approved enrollment in this course to join this live class.');
             }
